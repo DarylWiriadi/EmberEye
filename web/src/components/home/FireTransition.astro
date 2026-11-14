@@ -14,7 +14,7 @@ const circles = [
 ---
 
 <!--
-  Scroll into the fire. The section is 3 screens tall and its stage sticks to
+  Scroll into the fire. The section is 2 screens tall and its stage sticks to
   the viewport (CSS sticky, so no GSAP pinning and no change to anchor
   positions above). GSAP ScrollTrigger scrubs the animation with scroll.
 
@@ -141,7 +141,7 @@ const circles = [
   /* ---------- Animated version (class added by the script) ---------- */
 
   .fire-transition.is-animated {
-    height: 300vh;
+    height: 200vh; /* 1 screen of scrolling drives the whole animation */
     background: var(--color-bg);
   }
 
