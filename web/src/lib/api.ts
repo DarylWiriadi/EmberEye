@@ -22,6 +22,10 @@ export const bboxParam = (b: Bbox) => b.map((v) => v.toFixed(2)).join(',');
 
 const WORLD: Bbox = [-180, -85, 180, 85];
 
+/** The cache key of the whole-world points for a date range (as useHotspots uses). */
+export const worldHotspotsKey = (range: DateRange, limit = 50_000) =>
+  ['hotspots', bboxParam(WORLD), range.start, range.end, limit] as const;
+
 /**
  * The area to fetch for a map view: bigger than what's visible and snapped to a
  * zoom-dependent grid, so panning and zooming within it reuse the same request.
@@ -83,11 +87,17 @@ const contains = (outer: string, inner: string) => {
   return ow <= iw && os <= is && oe >= ie && on >= inn;
 };
 
+const sizeOf = (bbox: string) => {
+  const [w, s, e, n] = bbox.split(',').map(Number);
+  return (e - w) * (n - s);
+};
+
 /**
  * While a new view loads, show what's already there: the previous data if it
  * covers the new view (zooming in, small pans), else the whole-world data for
- * the same dates if it was loaded before (zooming out). `keepAnyPrevious` falls
- * back to the previous data even if it covers less.
+ * the same dates if it was loaded before. `keepAnyPrevious` also keeps the
+ * previous data when panning, but never when zooming out (it would leave the
+ * zoomed-in detail in one small patch).
  */
 export function useHotspots(
   bbox: Bbox | null,
@@ -102,8 +112,9 @@ export function useHotspots(
     placeholderData: (prev, prevQuery) => {
       const prevBbox = prevQuery?.queryKey[1] as string | undefined;
       if (prev && prevBbox && b && contains(prevBbox, b)) return prev;
-      const world = qc.getQueryData<HotspotsResponse>(['hotspots', bboxParam(WORLD), range?.start, range?.end, limit]);
-      return world ?? (keepAnyPrevious ? prev : undefined);
+      const world = range ? qc.getQueryData<HotspotsResponse>(worldHotspotsKey(range, limit)) : undefined;
+      const zoomingOut = !!prevBbox && !!b && sizeOf(b) > 1.5 * sizeOf(prevBbox);
+      return world ?? (keepAnyPrevious && !zoomingOut ? prev : undefined);
     },
     // The signal cancels the request once it's no longer wanted (dates or view changed).
     queryFn: ({ signal }) => getJson<HotspotsResponse>('/hotspots', { bbox: b, limit, ...range }, signal),

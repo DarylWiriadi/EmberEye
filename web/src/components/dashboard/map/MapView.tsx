@@ -11,7 +11,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { useAppStore, useSliderWindow, useSteps } from '../../../store/useAppStore';
 import { addDays, DAY_MS, stepOf, windowPhrase } from '../../../lib/steps';
-import { fetchBbox, useBurned, useHotspots, type HotspotsResponse } from '../../../lib/api';
+import { useQueryClient } from '@tanstack/react-query';
+import { fetchBbox, useBurned, useHotspots, worldHotspotsKey, type HotspotsResponse } from '../../../lib/api';
 import {
   BASEMAP_ATTRIBUTION,
   BASEMAP_MAX_ZOOM,
@@ -27,6 +28,8 @@ import MapStatus from './MapStatus';
 const INITIAL_ZOOM = 1.6;
 // Outlines: merged H3 res 7 cells (~5 km2) with a detection in the last 30 days.
 const OUTLINE_MIN_ZOOM = 7.5;
+// Below this zoom (about country level) the map only shows the reduced sample.
+const DETAIL_MIN_ZOOM = 5;
 const OUTLINE_WINDOW_DAYS = 30;
 // Most dots drawn for one slider step; more than this just piles up.
 const STEP_DOT_CAP = 5_000;
@@ -131,6 +134,12 @@ export default function MapView() {
   );
 
   const playing = useAppStore((s) => s.playing);
+
+  // Live zoom (not debounced): dots grow smoothly while zooming, and zooming out
+  // drops zoomed-in detail at once. Data requests still wait for the map to stop.
+  const [zoomNow, setZoomNow] = useState(INITIAL_ZOOM);
+  const zoom = Math.min(view?.zoom ?? 0, zoomNow);
+  const zoomedOutLive = zoomNow < (view?.zoom ?? 0) - 1;
   const steps = useSteps();
   const win = useSliderWindow();
   const k = useAppStore((s) => s.sliderStep);
@@ -160,7 +169,8 @@ export default function MapView() {
   // shows first. Data still on screen from the previous view doesn't count.
   const rangeFresh = !!rangeQuery.data && !rangeQuery.isPlaceholderData;
   const likelySampled = rangeFresh ? rangeQuery.data!.truncated : true;
-  const useWinQuery = likelySampled && !playing && !frozen && isSettled;
+  const detailed = zoom >= DETAIL_MIN_ZOOM;
+  const useWinQuery = detailed && likelySampled && !playing && !frozen && isSettled;
   const winQuery = useHotspots(area, settled ? { start: settled.start, end: settled.end } : null, useWinQuery, {
     limit: STEP_DOT_CAP,
     keepAnyPrevious: false,
@@ -168,7 +178,12 @@ export default function MapView() {
   const fromWinQuery = useWinQuery && winQuery.data?.start === win?.start && winQuery.data?.end === win?.end;
 
   // All loaded points go to the GPU once; the slider only moves a filter window.
-  const rangePoints = useMemo(() => toPoints(rangeQuery.data), [rangeQuery.data]);
+  // Zoomed out well past the loaded area: show the whole-world sample (if loaded)
+  // right away instead of the zoomed-in patch, until the new view has loaded.
+  const qc = useQueryClient();
+  const rangeData =
+    zoomedOutLive && range ? qc.getQueryData<HotspotsResponse>(worldHotspotsKey(range)) : rangeQuery.data;
+  const rangePoints = useMemo(() => toPoints(rangeData), [rangeData]);
   const winPoints = useMemo(() => toPoints(winQuery.data), [winQuery.data]);
   const stepIndex = useCallback((iso: string) => (steps ? stepOf(steps, iso) : 0), [steps]);
   // 0 for the newest day in its step, up to 1 for the oldest.
@@ -224,8 +239,6 @@ export default function MapView() {
   // The slider position (fractional while gliding) drives the fade between steps.
   const t = useAppStore((s) => s.sliderPos);
 
-  // Live zoom (not debounced) so dots grow smoothly while zooming.
-  const [zoomNow, setZoomNow] = useState(INITIAL_ZOOM);
   const dotRadius = Math.min(10, 1.2 + Math.max(0, zoomNow - 1.5) * 0.75);
 
   const status = useMemo(() => {
@@ -243,12 +256,12 @@ export default function MapView() {
     if (!r) return 'Loading hotspots…';
     if (r.truncated) {
       if (playing) return `Hotspots ${when} · a sample while playing`;
-      if (frozen) return `Hotspots ${when} · a sample · zoom in for every hotspot`;
+      if (frozen || !detailed) return `Hotspots ${when} · a sample · zoom in for every hotspot`;
       return `Hotspots ${when} · loading all of them…`;
     }
     const shown = stepShown < stepCount ? ` · showing about ${stepShown.toLocaleString()}` : '';
     return `${stepCount.toLocaleString()} hotspots ${when}${shown} · ${r.total.toLocaleString()} in the date range`;
-  }, [win, rangeQuery.data, rangeQuery.isPlaceholderData, fromWinQuery, winQuery.data, winQuery.isPlaceholderData, playing, frozen, stepCount, stepShown]);
+  }, [win, rangeQuery.data, rangeQuery.isPlaceholderData, fromWinQuery, winQuery.data, winQuery.isPlaceholderData, playing, frozen, detailed, stepCount, stepShown]);
   const activeQuery = fromWinQuery ? winQuery : rangeQuery;
 
   const hotspotLayer = (id: string, data: Point[], opacity: number) =>
@@ -277,7 +290,7 @@ export default function MapView() {
   // OUTLINE_WINDOW_DAYS up to the end of the slider's window. Built from the
   // loaded dots when they're all there (works while playing); otherwise asked for
   // just those days once the slider settles, without waiting for the dots.
-  const outlinesWanted = (view?.zoom ?? 0) >= OUTLINE_MIN_ZOOM;
+  const outlinesWanted = zoom >= OUTLINE_MIN_ZOOM;
   const dotsComplete = rangeFresh && !rangeQuery.data!.truncated;
   const outlineSpan = useMemo(() => {
     if (!win || !range) return null;
