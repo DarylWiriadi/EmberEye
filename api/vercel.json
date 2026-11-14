@@ -1,6 +1,10 @@
 {
   "regions": ["syd1"],
   "functions": {
-    "main.py": { "includeFiles": "{data,duckdb_ext}/**", "maxDuration": 60 }
+    "main.py": {
+      "includeFiles": "{data,duckdb_ext}/**",
+      "excludeFiles": "{data/climatology/**,data/calibration/**,duckdb_ext/*/windows_amd64/**}",
+      "maxDuration": 60
+    }
   }
 }

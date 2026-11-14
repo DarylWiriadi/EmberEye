@@ -84,9 +84,11 @@ CLIMATOLOGY_YEARS = (2003, 2025)
 R2_STAGE_DIR = ROOT / "data" / "r2"
 # Demo regions also ship inside api/data/regions/ as an offline fallback.
 # name: (west, south, east, north)
+# Only one fits: Vercel limits the API (code + data) to 225 MB. All points are in R2;
+# these are just the offline backup. Add more back if the API moves to Fly.io.
 DEMO_REGIONS = {
     "se-australia": ("South-east Australia", (140.0, -39.5, 154.0, -28.0)),
-    "california": ("California", (-124.5, 32.5, -114.0, 42.0)),
-    "western-canada": ("Western Canada", (-139.0, 48.5, -110.0, 60.0)),
-    "mediterranean": ("Mediterranean", (-10.0, 35.0, 28.0, 45.0)),
+    # "california": ("California", (-124.5, 32.5, -114.0, 42.0)),            # ~11 MB
+    # "western-canada": ("Western Canada", (-139.0, 48.5, -110.0, 60.0)),    # ~26 MB
+    # "mediterranean": ("Mediterranean", (-10.0, 35.0, 28.0, 45.0)),         # ~15 MB
 }
