@@ -57,3 +57,22 @@ H3_CALIB_RES = 2         # calibration regions
 H3_GLOBAL_MONTHLY_RES = 5
 H3_GLOBAL_DAILY_RES = 3
 H3_REGION_RES = 7
+
+# --- Harmonization -------------------------------------------------------
+CELLDAYS_DIR = INTERIM_DIR / "celldays"        # one row per (cell8, date, sensor)
+HARMONIZED_DIR = INTERIM_DIR / "harmonized"    # chosen sensor per day, VIIRS-equivalent weights
+API_DATA_DIR = ROOT.parent / "api" / "data"    # final outputs served by the API (committed)
+REPORTS_DIR = ROOT / "reports"                 # small QA/validation files (committed)
+
+# Overlap windows used to calibrate each sensor against S-NPP (the reference).
+# MODIS: 2012-2019 only (Terra/Aqua orbit drift after 2019 changed overpass times).
+CALIB_WINDOWS = {
+    MODIS_AQUA: (date(2012, 1, 20), date(2019, 12, 31)),
+    VIIRS_NOAA20: (date(2024, 1, 1), date(2024, 12, 31)),
+}
+# Minimum fire cell-days (of the sensor being calibrated) for a region-month
+# ratio; below this we fall back to H3 res 1, then res 0, then global.
+CALIB_MIN_CELLDAYS = 100
+
+# Baseline years for medians / multi-year means (complete years only).
+CLIMATOLOGY_YEARS = (2003, 2025)
