@@ -1,7 +1,26 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/home/Hero.astro';
+import Problem from '../components/home/Problem.astro';
+import DataStory from '../components/home/DataStory.astro';
+import TechStack from '../components/home/TechStack.astro';
+import Approach from '../components/home/Approach.astro';
+import FeaturedFires from '../components/home/FeaturedFires.astro';
+import Audience from '../components/home/Audience.astro';
+import FireTransition from '../components/home/FireTransition.astro';
 ---
 
-<BaseLayout>
-  <!-- Home scroll story goes here (CLAUDE.md section 10). -->
+<BaseLayout reveal>
+  <Hero />
+  <Problem />
+  <DataStory />
+  <TechStack />
+  <Approach />
+  <FeaturedFires />
+  <Audience />
+  <FireTransition />
 </BaseLayout>
+
+<script>
+  import '../scripts/reveal';
+</script>

@@ -1,149 +1,65 @@
 ---
-import { Icon } from 'astro-icon/components';
 import '../styles/global.css';
+import Nav from '../components/layout/Nav.astro';
+import Footer from '../components/layout/Footer.astro';
+import { site } from '../lib/site';
 
 interface Props {
+  /** Page title, shown before the site name. Leave out on the home page. */
   title?: string;
   description?: string;
-  /** Full-screen app mode (dashboard): no footer, page doesn't scroll. */
-  app?: boolean;
+  /** Page uses scroll-reveal animations (src/scripts/reveal.ts) */
+  reveal?: boolean;
 }
 
-const {
-  title,
-  description = 'Harmonized MODIS + VIIRS fire calendar and fire-spread simulator.',
-  app = false,
-} = Astro.props;
-
-const fullTitle = title ? `${title} · EmberEye` : 'EmberEye';
-const path = Astro.url.pathname.replace(/\/$/, '') || '/';
-const links = [
-  { href: '/dashboard', label: 'Dashboard' },
-];
+const { title, description = site.description, reveal = false } = Astro.props;
+const pageTitle = title ? `${title} | ${site.name}` : `${site.name}: ${site.tagline}`;
 ---
 
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
     <meta name="description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <!-- Browser UI colour; must be a literal, matches --color-bg -->
+    <meta name="theme-color" content="#0b0e13" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/png" href="/favicon.png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="generator" content={Astro.generator} />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" href="/favicon.ico" />
-    <title>{fullTitle}</title>
+    {
+      reveal && (
+        <script is:inline>
+          // Hide scroll-reveal content before first paint (no flash), then let the
+          // animation script reveal it. If that script hasn't started within 3 s,
+          // show everything instead.
+          document.documentElement.classList.add('js-reveal');
+          setTimeout(function () {
+            if (!document.documentElement.classList.contains('reveal-ready')) {
+              document.documentElement.classList.remove('js-reveal');
+            }
+          }, 3000);
+        </script>
+      )
+    }
   </head>
-  <body class:list={{ app }}>
-    <header class="nav">
-      <a class="brand" href="/">
-        <Icon name="lucide:flame" aria-hidden="true" />
-        <span>EmberEye</span>
-      </a>
-      <nav aria-label="Main">
-        <ul>
-          {links.map((l) => (
-            <li>
-              <a href={l.href} aria-current={path === l.href ? 'page' : undefined}>{l.label}</a>
-            </li>
-          ))}
-        </ul>
-      </nav>
-    </header>
-
-    <main>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <Nav />
+    <main id="main" tabindex="-1">
       <slot />
     </main>
-
-    {!app && (
-      <footer class="footer">
-        <p>
-          Hotspot data: NASA FIRMS (MODIS, VIIRS). Fire activity outlook only, not an official
-          fire danger rating.
-        </p>
-      </footer>
-    )}
+    <Footer />
   </body>
 </html>
 
 <style>
-  .nav {
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    height: var(--nav-height);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 0 16px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .brand {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 700;
-    font-size: 1.1rem;
-    text-decoration: none;
-  }
-
-  .brand :global(svg) {
-    color: var(--accent);
-    width: 22px;
-    height: 22px;
-  }
-
-  .nav ul {
-    display: flex;
-    gap: 4px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .nav ul a {
-    display: inline-flex;
-    align-items: center;
-    min-height: 44px;
-    padding: 0 12px;
-    border-radius: var(--radius);
-    color: var(--text-muted);
-    text-decoration: none;
-  }
-
-  .nav ul a:hover,
-  .nav ul a[aria-current='page'] {
-    color: var(--text);
-    background: var(--surface-2);
-  }
-
-  .footer {
-    padding: 24px 16px;
-    border-top: 1px solid var(--border);
-    color: var(--text-muted);
-    font-size: 0.875rem;
-  }
-
-  /* App mode: nav on top, the page fills the rest of the screen. */
-  body.app {
-    height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  body.app main {
-    flex: 1;
-    min-height: 0;
-  }
-
-  /* Phones: let the app page scroll (the dashboard stacks its regions). */
-  @media (max-width: 768px) {
-    body.app {
-      height: auto;
-      min-height: 100dvh;
-      overflow: auto;
-    }
+  main:focus {
+    outline: none;
   }
 </style>

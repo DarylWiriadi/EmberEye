@@ -1,0 +1,144 @@
+---
+import SectionHeader from './SectionHeader.astro';
+
+// Draft copy; final text in issue #5
+const milestones = [
+  {
+    date: '2000',
+    datetime: '2000-11',
+    title: 'MODIS on Terra',
+    text: 'The first global fire record from orbit begins, with 1\u00a0km pixels.',
+  },
+  {
+    date: '2002',
+    datetime: '2002-07',
+    title: 'MODIS on Aqua',
+    text: 'A second MODIS joins with afternoon passes. Our history starts here.',
+  },
+  {
+    date: '2012',
+    datetime: '2012-01',
+    title: 'VIIRS on Suomi NPP',
+    text: '375\u00a0m pixels catch far smaller fires, so counts jump overnight.',
+  },
+  {
+    date: '2018',
+    datetime: '2018-04',
+    title: 'VIIRS on NOAA-20',
+    text: 'A second VIIRS, on the same orbit about 50 minutes apart.',
+  },
+  {
+    date: 'Nov 2026',
+    datetime: '2026-11-02',
+    title: 'Suomi NPP signs off',
+    text: 'NOAA-20 carries the record on. The handover happened this season.',
+    current: true,
+  },
+];
+---
+
+<section id="data-story" class="section" aria-labelledby="data-story-title">
+  <div class="container">
+    <SectionHeader
+      eyebrow="The data story"
+      title="Two sensors, one timeline"
+      headingId="data-story-title"
+      lede="Smaller pixels see smaller fires, so VIIRS reports many more hotspots than MODIS over the same ground. Raw counts from the two can’t be compared directly."
+    />
+
+    <ol class="timeline" role="list" data-reveal-group>
+      {
+        milestones.map((m) => (
+          <li class:list={['milestone', { 'milestone--current': m.current }]}>
+            <time class="milestone-date" datetime={m.datetime}>
+              {m.date}
+            </time>
+            <h3 class="milestone-title">{m.title}</h3>
+            <p class="milestone-text">{m.text}</p>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</section>
+
+<style>
+  /* Narrow screens: a vertical timeline with the line on the left */
+  .timeline {
+    display: grid;
+    gap: 0;
+  }
+
+  .milestone {
+    position: relative;
+    padding: 0 0 var(--space-l) var(--space-l);
+    border-left: 2px solid var(--color-border-strong);
+  }
+
+  /* Dot on the timeline line */
+  .milestone::before {
+    content: '';
+    position: absolute;
+    top: 0.3rem;
+    left: calc(-0.375rem - 1px);
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 50%;
+    background: var(--color-sky);
+  }
+
+  .milestone--current {
+    border-left-color: var(--color-ember);
+    padding-bottom: 0;
+  }
+
+  /* Wide screens: one row, line along the top */
+  @media (min-width: 56rem) {
+    .timeline {
+      grid-template-columns: repeat(5, 1fr);
+      gap: var(--space-m);
+    }
+
+    .milestone {
+      padding: var(--space-m) 0 0;
+      border-left: 0;
+      border-top: 2px solid var(--color-border-strong);
+    }
+
+    .milestone::before {
+      top: calc(-0.375rem - 1px);
+      left: 0;
+    }
+
+    .milestone--current {
+      border-top-color: var(--color-ember);
+    }
+  }
+
+  .milestone--current::before {
+    background: var(--color-ember);
+    box-shadow: var(--glow-ember);
+  }
+
+  .milestone-date {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-sky);
+  }
+
+  .milestone--current .milestone-date {
+    color: var(--color-ember);
+  }
+
+  .milestone-title {
+    margin-top: var(--space-2xs);
+    font-size: var(--text-lg);
+  }
+
+  .milestone-text {
+    margin-top: var(--space-2xs);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+</style>
