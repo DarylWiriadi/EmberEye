@@ -406,9 +406,9 @@ export default function MapView() {
     setArea({ bbox, source: 'rectangle', label: describeBbox(bbox) });
   };
 
-  // Typed-in coordinates: bring the area into view.
+  // Typed-in coordinates and featured fires: bring the area into view.
   useEffect(() => {
-    if (selectedArea?.source !== 'coordinates') return;
+    if (!selectedArea || selectedArea.source === 'rectangle') return;
     const [w, s, e, n] = selectedArea.bbox;
     const instant = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     mapRef.current?.fitBounds([[w, s], [e, n]], { padding: 80, duration: instant ? 0 : 900 });

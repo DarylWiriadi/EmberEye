@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CalendarDays, ChevronLeft, ChevronRight, Flame, Gauge } from 'lucide-react';
 import { useHealth } from '../../lib/api';
+import { featuredFire } from '../../lib/featuredFires';
+import { openFeaturedFire } from '../../lib/openFeaturedFire';
+import FeaturedList from './featured/FeaturedList';
 import { useAppStore } from '../../store/useAppStore';
 import MapView from './map/MapView';
 import DownloadMenu from './downloads/DownloadMenu';
@@ -39,7 +42,14 @@ function DashboardShell() {
   const coverage = health.data?.coverage;
 
   useEffect(() => {
-    if (coverage && !range) setRange({ start: addDays(coverage.last, -29), end: coverage.last });
+    if (!coverage || range) return;
+    // /dashboard?fire=<id> opens a featured fire: its area and dates.
+    const fire = featuredFire(new URLSearchParams(window.location.search).get('fire'));
+    if (fire) {
+      openFeaturedFire(fire);
+    } else {
+      setRange({ start: addDays(coverage.last, -29), end: coverage.last });
+    }
   }, [coverage, range, setRange]);
 
   return (
@@ -89,7 +99,7 @@ function DashboardShell() {
               >
                 {sideTab === 'calendar' && <CalendarWidget />}
                 {sideTab === 'risk' && <div className="dash-slot">Risk outlook (coming soon)</div>}
-                {sideTab === 'featured' && <div className="dash-slot">Featured fires (coming soon)</div>}
+                {sideTab === 'featured' && <FeaturedList />}
               </div>
             </div>
           </aside>
