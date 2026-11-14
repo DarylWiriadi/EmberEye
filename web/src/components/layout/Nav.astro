@@ -294,8 +294,8 @@ const sectionHref = (id: string) => (onHome ? `#${id}` : `${pages.home}#${id}`);
       const update = () => {
         queued = false;
         // Highlight the last linked section whose top has passed a line a quarter of
-        // the way down the screen. Sections without a nav link (Raw vs harmonized,
-        // How it's built) keep the previous link lit, so Data story stays on through them.
+        // the way down the screen. A section without a nav link (How it's built) keeps
+        // the previous link lit, so Data story stays on through it.
         const line = header.offsetHeight + window.innerHeight * 0.25;
         let currentId: string | undefined;
         for (const section of sections) {
