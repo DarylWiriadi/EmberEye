@@ -1,3 +1,12 @@
 .venv
 __pycache__
 *.pyc
+
+# Kept in git, but not uploaded to Vercel (Python functions are limited to
+# 225 MB). The API doesn't read these:
+data/climatology
+data/calibration
+# Offline fallback regions: only SE Australia is deployed; all points are in R2.
+data/regions/california.parquet
+data/regions/western-canada.parquet
+data/regions/mediterranean.parquet

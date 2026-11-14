@@ -239,7 +239,7 @@ Raw downloads stay out of git (many GB). Only the smaller Parquet outputs go int
    - 2012 → 2 Nov 2026: VIIRS S-NPP as is.
    - After 2 Nov 2026: VIIRS NOAA-20 cell-days × a NOAA-20→S-NPP ratio, calibrated the same way on their overlap year **2024** (the NOAA-20 year we downloaded globally). Expect a ratio near 1 (same sensor, same orbit ~50 min apart), but compute and report it.
    - Pitch point: the sensor handover the brief describes happened during this hackathon season, and the pipeline handles it.
-6. **Aggregate** to Parquet, at different detail levels so the deployed data stays small (target **< ~200 MB total**, every file < 100 MB for GitHub, well under Vercel's 500 MB function limit):
+6. **Aggregate** to Parquet, at different detail levels so the deployed data stays small (target **< ~200 MB total**, every file < 100 MB for GitHub, and the deployed API must fit Vercel's **225 MB Python function limit** together with its packages and the bundled httpfs extension):
    - Global **monthly** counts per H3 **res 5** cell → calendar years view + anomalies anywhere.
    - Global **daily** counts per H3 **res 3** cell → calendar month view anywhere.
    - Demo regions: **daily** counts per H3 **res 7** + **raw hotspot points** → map dots, per-fire stats, hotspot CSV export.
@@ -289,7 +289,7 @@ Rules:
   ```
 - **H3 in the API**: the API uses the `h3` Python package (cell conversion only); it does **not** need the DuckDB `h3` extension, so there is no build step and nothing is downloaded at runtime. The pipeline precomputes every H3 index the API needs (e.g. `global/cells_res5.parquet` has each cell's res 3 parent and centre lat/lng). The DuckDB `h3` extension is used only by the offline pipeline.
 - **Read-only filesystem**: open DuckDB in memory, read Parquet files by path, and set `temp_directory` to `/tmp`.
-- **Limits to respect**: function bundle ≤ 500 MB (up to 5 GB with the "large functions" beta), so the Parquet data must fit; responses ≤ 4.5 MB unless streamed, so **stream CSV exports** and keep `/hotspots` responses small (bbox + date, with a cap).
+- **Limits to respect**: a **Python function bundle is limited to 225 MB** (measured on a real deploy: the build fails with `LAMBDA_SIZE_EXCEEDED`). Currently ~201 MB: global counts ~127 MB, httpfs 27 MB, SE Australia fallback points 20 MB, packages ~23 MB. Files the API doesn't read are kept in git but excluded from the upload in `api/.vercelignore`. Individual hotspot points live in Cloudflare R2. Responses ≤ 4.5 MB unless streamed, so **stream CSV exports** and keep `/hotspots` responses small (bbox + date, with a cap).
 - **Static files** (`static/`): mount with FastAPI `StaticFiles` so Vercel serves them from its CDN.
 - **Cold starts**: the first request after idle loads Python + DuckDB. Warm the site up before presenting.
 

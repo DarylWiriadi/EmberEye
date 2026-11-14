@@ -13,7 +13,7 @@ Writes to api/data/ (committed to git, so keep every file < 100 MB):
 Column meanings:
     fire_days   harmonized fire cell-days (S-NPP VIIRS equivalent, H3 res 8 cells)
     detections  observed hotspots from the sensor used that day (not harmonized)
-    frp_sum     observed fire radiative power, MW (not harmonized)
+    frp_sum     observed fire radiative power, MW, rounded to whole MW (not harmonized)
 """
 import shutil
 import sys
@@ -24,7 +24,8 @@ from clean import connect, run
 
 OUT = C.API_DATA_DIR
 H = (C.HARMONIZED_DIR / "year=*" / "*.parquet").as_posix()
-PQ = "FORMAT parquet, COMPRESSION zstd, ROW_GROUP_SIZE 122880"
+# zstd level 19: slower to write, ~10% smaller files (the API bundle has a 225 MB limit)
+PQ = "FORMAT parquet, COMPRESSION zstd, COMPRESSION_LEVEL 19, ROW_GROUP_SIZE 122880"
 
 
 def monthly_res5(con):
@@ -34,7 +35,7 @@ def monthly_res5(con):
                date_trunc('month', acq_date)::DATE AS month,
                sum(weight)::FLOAT AS fire_days,
                sum(n_det)::INTEGER AS detections,
-               sum(frp_sum)::FLOAT AS frp_sum
+               round(sum(frp_sum))::UINTEGER AS frp_sum   -- whole MW: decimals made files ~35% bigger
         FROM read_parquet('{H}')
         GROUP BY ALL
     """)
@@ -65,7 +66,7 @@ def daily_res3(con):
                        acq_date AS date,
                        sum(weight)::FLOAT AS fire_days,
                        sum(n_det)::INTEGER AS detections,
-                       sum(frp_sum)::FLOAT AS frp_sum
+                       round(sum(frp_sum))::UINTEGER AS frp_sum   -- whole MW: decimals made files ~35% bigger
                 FROM read_parquet('{(year_dir / "*.parquet").as_posix()}')
                 GROUP BY ALL ORDER BY cell3, date
             ) TO '{(out / f"{year}.parquet").as_posix()}' ({PQ})

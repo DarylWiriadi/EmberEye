@@ -86,7 +86,10 @@ def _connect() -> duckdb.DuckDBPyConnection:
         SELECT *, {CELL5_FROM_CELL8} AS cell5 FROM read_parquet('{_p("regions", "*.parquet")}');
     """)
     manifest = json.loads((DATA / "points_manifest.json").read_text())
-    regions = json.loads((DATA / "regions" / "regions.json").read_text())
+    # Only regions whose file was deployed (see .vercelignore) count as fallback.
+    regions = {slug: r for slug, r in
+               json.loads((DATA / "regions" / "regions.json").read_text()).items()
+               if (DATA / "regions" / f"{slug}.parquet").exists()}
     r2_enabled = _setup_r2(con)
     return con
 
