@@ -65,7 +65,10 @@ def _setup_r2(con) -> bool:
         con.execute(f"""CREATE SECRET r2 (TYPE r2,
                         KEY_ID {_sql_str(os.environ["R2_ACCESS_KEY_ID"])},
                         SECRET {_sql_str(os.environ["R2_SECRET_ACCESS_KEY"])},
-                        ACCOUNT_ID {_sql_str(os.environ["R2_ACCOUNT_ID"])})""")
+                        ACCOUNT_ID {_sql_str(os.environ["R2_ACCOUNT_ID"])},
+                        -- Explicit: otherwise DuckDB picks up AWS_REGION (Vercel sets
+                        -- ap-southeast-2), which R2 rejects as an invalid region.
+                        REGION 'auto')""")
         con.execute("SET enable_http_metadata_cache = true")
         con.execute("SET parquet_metadata_cache = true")
         r2_status = "enabled"
@@ -97,7 +100,7 @@ def _connect() -> duckdb.DuckDBPyConnection:
         SELECT *, {CELL5_FROM_CELL8} AS cell5 FROM read_parquet('{_p("regions", "*.parquet")}');
     """)
     manifest = json.loads((DATA / "points_manifest.json").read_text())
-    # Only regions whose file was deployed (see .vercelignore) count as fallback.
+    # Only regions whose file is present in the deployment count as fallback.
     regions = {slug: r for slug, r in
                json.loads((DATA / "regions" / "regions.json").read_text()).items()
                if (DATA / "regions" / f"{slug}.parquet").exists()}
