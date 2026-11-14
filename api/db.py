@@ -38,6 +38,7 @@ _lock = threading.Lock()
 
 R2_BUCKET = os.environ.get("R2_BUCKET", "")
 r2_enabled = False          # set by _connect()
+r2_status = "not started"   # shown by /health (never includes secrets)
 manifest: dict = {}         # points_manifest.json (which R2 files exist)
 regions: dict = {}          # data/regions/regions.json
 
@@ -51,21 +52,27 @@ def _sql_str(v: str) -> str:
 
 
 def _setup_r2(con) -> bool:
-    keys = [os.environ.get(k, "") for k in
-            ("R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY")]
-    if not (all(keys) and R2_BUCKET):
-        log.info("R2 not configured; using bundled demo regions for hotspot points")
+    global r2_status
+    names = ("R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET")
+    missing = [k for k in names if not os.environ.get(k)]
+    if missing:
+        r2_status = "not configured, missing: " + ", ".join(missing)
+        log.info("R2 %s; using bundled demo regions for hotspot points", r2_status)
         return False
-    account, key_id, secret = keys
     try:
         con.execute("LOAD httpfs")
-        con.execute(f"""CREATE SECRET r2 (TYPE r2, KEY_ID {_sql_str(key_id)},
-                        SECRET {_sql_str(secret)}, ACCOUNT_ID {_sql_str(account)})""")
+        con.execute(f"""CREATE SECRET r2 (TYPE r2,
+                        KEY_ID {_sql_str(os.environ["R2_ACCESS_KEY_ID"])},
+                        SECRET {_sql_str(os.environ["R2_SECRET_ACCESS_KEY"])},
+                        ACCOUNT_ID {_sql_str(os.environ["R2_ACCOUNT_ID"])})""")
         con.execute("SET enable_http_metadata_cache = true")
         con.execute("SET parquet_metadata_cache = true")
+        r2_status = "enabled"
         return True
     except duckdb.Error as e:
-        log.warning("R2 setup failed (%s); using bundled demo regions", e)
+        # Error text from LOAD/CREATE SECRET doesn't contain the key values.
+        r2_status = f"setup failed: {type(e).__name__}: {str(e)[:300]}"
+        log.warning("R2 %s; using bundled demo regions", r2_status)
         return False
 
 

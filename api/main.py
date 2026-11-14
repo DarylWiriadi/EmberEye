@@ -37,4 +37,6 @@ def health():
     cur = db.cursor()
     first, last = db.coverage(cur)
     return {"ok": True, "coverage": {"first": str(first), "last": str(last)},
+            "hotspot_archive": {"r2": db.r2_status,
+                                "fallback_regions": [r["name"] for r in db.regions.values()]},
             "query_ms": round((time.perf_counter() - t) * 1000, 1)}
