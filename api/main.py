@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
 import db
-from routes import calendar
+from routes import calendar, export, hotspots
 
 app = FastAPI(title="EmberEye API", version="0.1.0")
 
@@ -21,6 +21,8 @@ app.add_middleware(
 )
 
 app.include_router(calendar.router)
+app.include_router(hotspots.router)
+app.include_router(export.router)
 
 
 @app.get("/")

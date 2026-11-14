@@ -76,3 +76,17 @@ CALIB_MIN_CELLDAYS = 100
 
 # Baseline years for medians / multi-year means (complete years only).
 CLIMATOLOGY_YEARS = (2003, 2025)
+
+
+# --- Individual hotspot points ----------------------------------------------
+# All points go to Cloudflare R2 (too big for the deployment); the export is
+# staged here, then uploaded. Layout: points/year=<YYYY>/base=<H3 res 0 cell>.parquet
+R2_STAGE_DIR = ROOT / "data" / "r2"
+# Demo regions also ship inside api/data/regions/ as an offline fallback.
+# name: (west, south, east, north)
+DEMO_REGIONS = {
+    "se-australia": ("South-east Australia", (140.0, -39.5, 154.0, -28.0)),
+    "california": ("California", (-124.5, 32.5, -114.0, 42.0)),
+    "western-canada": ("Western Canada", (-139.0, 48.5, -110.0, 60.0)),
+    "mediterranean": ("Mediterranean", (-10.0, 35.0, 28.0, 45.0)),
+}

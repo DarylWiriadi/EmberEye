@@ -158,7 +158,9 @@ __pycache__/
 
 # Deploy / tools
 .vercel/
-api/duckdb_ext/
+# DuckDB extensions: only the Linux build (used on Vercel) is committed
+api/duckdb_ext/*/*
+!api/duckdb_ext/*/linux_amd64/
 
 # OS
 .DS_Store

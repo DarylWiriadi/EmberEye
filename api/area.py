@@ -46,11 +46,11 @@ def select_area(cur, bbox: str | None, cells: str | None) -> int:
         w, s, e, n = parse_bbox(bbox)
         lng = "lng BETWEEN ? AND ?" if w <= e else "(lng >= ? OR lng <= ?)"  # crosses the antimeridian
         cur.execute(f"""CREATE OR REPLACE TEMP TABLE sel AS
-                        SELECT cell5, cell3 FROM cells WHERE lat BETWEEN ? AND ? AND {lng}""",
+                        SELECT cell5, cell3, lat, lng FROM cells WHERE lat BETWEEN ? AND ? AND {lng}""",
                     [s, n, w, e])
     else:
         ids = cells_to_res5(cells)
         cur.execute("""CREATE OR REPLACE TEMP TABLE sel AS
-                       SELECT cell5, cell3 FROM cells
+                       SELECT cell5, cell3, lat, lng FROM cells
                        WHERE cell5 IN (SELECT unnest(?::UBIGINT[]))""", [ids])
     return cur.execute("SELECT count(*) FROM sel").fetchone()[0]

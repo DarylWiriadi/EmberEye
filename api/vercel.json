@@ -1,6 +1,6 @@
 {
   "regions": ["syd1"],
   "functions": {
-    "main.py": { "includeFiles": "data/**", "maxDuration": 60 }
+    "main.py": { "includeFiles": "{data,duckdb_ext}/**", "maxDuration": 60 }
   }
 }
