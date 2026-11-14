@@ -43,7 +43,7 @@ Burning activity includes **agricultural and land-clearing fires**, not only wil
 | 10 | Simulation download | Differentiator |
 | 11 | Simulation history (reload, compare, share links) | Differentiator |
 | 12 | Risk panel (global, FWI-based) | Differentiator |
-| — | Home page scroll story + methodology page | Presentation |
+| — | Home page scroll story (incl. "How it works" methodology section) | Presentation |
 
 **Cut order if short on time**: simulation history comparison → magic wand → paint brush (keep rectangle) → risk panel level 2 → featured fires → simulation. Never cut features 1–6.
 
@@ -51,7 +51,7 @@ Burning activity includes **agricultural and land-clearing fires**, not only wil
 
 | Layer | Choice |
 |---|---|
-| Site framework | **Astro** (home + methodology pages, static) |
+| Site framework | **Astro** (home page, static; no separate methodology page) |
 | Dashboard | **React + TypeScript**, mounted as `<Dashboard client:only="react" />` |
 | Map | **MapLibre GL JS** via `react-map-gl/maplibre` |
 | Data layers | **deck.gl** via `MapboxOverlay` (added with `useControl`) |
@@ -125,7 +125,6 @@ nasa-space-apps-2026/
         ├── pages/
         │   ├── index.astro       Home (scroll story)
         │   ├── dashboard.astro   Mounts <Dashboard client:only="react" />
-        │   └── methodology.astro
         ├── components/
         │   ├── home/
         │   │   ├── Hero.astro
@@ -222,7 +221,7 @@ Raw downloads stay out of git (many GB). Only the smaller Parquet outputs go int
    - Backup routes: the download page's yearly country files, or the original monthly global science files (MODIS MCD14ML, VIIRS VNP14IMGML) from the University of Maryland SFTP server.
    - Archive requests (CSV) are processed in the background and a download link is emailed. FIRMS delivers separate files per source (and often SP vs NRT).
    - Quick start: the same page offers **yearly summaries by country as direct CSV downloads** (no request). Handy for quick pipeline tests while global requests process.
-   - NRT data is replaced by science-quality SP data with a ~5-month lag, so the most recent months are NRT. Note this on the methodology page.
+   - NRT data is replaced by science-quality SP data with a ~5-month lag, so the most recent months are NRT. Note this in the home page's "How it works" section.
 2. **Clean**:
    - Keep FIRMS `type = 0` (presumed vegetation fire, includes agricultural burns). Drop volcanoes (1), static land sources like gas flares (2) and offshore (3). (Sample check: ~95% of MODIS rows are `type 0`.)
    - MODIS: keep **Aqua only** (`satellite IN ('Aqua', 'A')`).
@@ -247,7 +246,7 @@ Raw downloads stay out of git (many GB). Only the smaller Parquet outputs go int
    - Raw downloads (~10–20 GB) never leave the local machine.
    - Precompute per-cell monthly medians and multi-year means for anomaly views.
    - Sort/partition files by region and date so DuckDB can skip data.
-7. **Validate**: calibrate on 2012–2016, predict 2017–2019 from MODIS, compare with actual VIIRS. Output metrics + a **raw vs harmonized** chart (the raw series jumps at 2012, the harmonized one doesn't). This chart goes on the methodology page and in the pitch.
+7. **Validate**: calibrate on 2012–2016, predict 2017–2019 from MODIS, compare with actual VIIRS. Output metrics + a **raw vs harmonized** chart (the raw series jumps at 2012, the harmonized one doesn't). This chart goes on the home page ("How it works") and in the pitch.
 
 **Known limitation (state it openly)**: the map can't invent VIIRS-detail points before 2012. Pre-2012 map points are original MODIS detections; the calendar and stats use harmonized counts.
 
@@ -437,11 +436,11 @@ One ZIP (built in the browser with JSZip):
 ### Home (Astro, mostly static)
 
 Sections top to bottom:
-1. Top bar: name/logo, links to Dashboard and Methodology
+1. Top bar: name/logo, link to Dashboard, jump links to home sections
 2. Hero: mission line, subtitle, "Open the dashboard" + "How it works", spreading-fire visual (abstract dot grid now; later a looping muted video of a real simulation on the map)
 3. The problem
 4. The data story (MODIS since 2000, VIIRS since 2012)
-5. **Raw vs harmonized chart** (must keep)
+5. **How it works** (`id="how-it-works"`, target of the hero's "How it works" button): the **raw vs harmonized chart** (must keep), how harmonization works, validation results, data sources (NASA and non-NASA), limitations, SP vs NRT note, simulation and risk disclaimers. There is no separate methodology page.
 6. What you can do: calendar, compare, simulate
 7. Featured fires
 8. Who it's for
@@ -452,7 +451,7 @@ Accessibility: respect `prefers-reduced-motion` (simple fade instead), no rapid 
 
 #### Navigation: jump to sections
 
-- Each home section has an `id` (e.g. `problem`, `data-story`, `approach`, `featured`, `who`), and the nav links to them with `href="#id"`. Dashboard and Methodology are normal page links.
+- Each home section has an `id` (e.g. `problem`, `data-story`, `how-it-works`, `featured`, `who`), and the nav links to them with `href="#id"`. Dashboard is a normal page link.
 - Smooth scrolling only when motion is allowed:
   `@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }`
 - Sticky nav: add `scroll-margin-top` (≈ nav height) to `section[id]` so headings aren't hidden under it.
@@ -477,10 +476,6 @@ Safeguards:
 ### Dashboard
 
 As in section 7. Simulation is a mode within it, not a separate page.
-
-### Methodology
-
-How harmonization works, the raw vs harmonized chart, validation results, data sources, limitations, simulation and risk disclaimers.
 
 ## 11. Accessibility and honesty
 
