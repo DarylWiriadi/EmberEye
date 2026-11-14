@@ -1,5 +1,6 @@
 ---
 import { Image } from 'astro:assets';
+import landMap from '../../assets/land-map.webp';
 import fireMap from '../../assets/fire-map.webp';
 
 /*
@@ -10,8 +11,16 @@ import fireMap from '../../assets/fire-map.webp';
  *
  * The spots that pulse are the 12 busiest boxes, at least 15 degrees apart.
  * Positions are % of the map (x = longitude, y = latitude, 77.5N to 57.5S).
- * Regenerate the image and these together if the data changes
+ * Regenerate the images and these together if the data changes
  * (pipeline/hero_map/README.md).
+ *
+ * On load the map "ignites" (CSS only, about 2 s, nothing waits for it):
+ *   0.15 s   the logo's eye glows once (nav)
+ *   0-0.7 s  the land fades in: a dark world
+ *   0.35 s   the fire layer lights up, flickering like embers catching
+ *   1.0 s    the hotspots light up one by one, busiest first, each with one
+ *            big pulse, then settle into their slow pulse
+ * Reduced motion: everything is shown at once, without movement.
  */
 const spots = [
   { x: 70.97, y: 34.93, place: 'Northern India (crop burning)' },
@@ -31,24 +40,36 @@ const spots = [
 // Spots in the left half sit behind the hero text: they keep the pulsing ring
 // but have no bright core, so the text stays at 4.5:1 or better.
 const BEHIND_TEXT = 55; // % across
+
+// Hotspots light up one after another, busiest first (the list is in that order)
+const IGNITE_START = 1.0; // s
+const IGNITE_STEP = 0.08; // s
 ---
 
 <div class="hero-map" aria-hidden="true">
   <div class="hero-map-track" data-parallax="0.18" data-parallax-start="top top">
     <div class="hero-map-inner">
       <Image
+        src={landMap}
+        alt=""
+        widths={[960, 1440, 2160, 2880]}
+        sizes="max(100vw, 48rem)"
+        loading="eager"
+        class="hero-map-img hero-map-land"
+      />
+      <Image
         src={fireMap}
         alt=""
         widths={[960, 1440, 2160, 2880]}
         sizes="max(100vw, 48rem)"
         loading="eager"
-        class="hero-map-img"
+        class="hero-map-img hero-map-fire"
       />
       {
         spots.map((s, i) => (
           <span
             class:list={['spot', { 'spot--behind-text': s.x < BEHIND_TEXT }]}
-            style={`--x: ${s.x}%; --y: ${s.y}%; --delay: ${(i * 0.73) % 4.5}s`}
+            style={`--x: ${s.x}%; --y: ${s.y}%; --delay: ${((i * 0.73) % 4.5).toFixed(2)}s; --ignite: ${(IGNITE_START + i * IGNITE_STEP).toFixed(2)}s`}
           />
         ))
       }
@@ -84,12 +105,75 @@ const BEHIND_TEXT = 55; // % across
   .hero-map-inner {
     position: relative;
     opacity: 0.8;
-    animation: map-in 1.8s var(--ease-out) both;
   }
 
   .hero-map-inner :global(.hero-map-img) {
+    display: block;
     width: 100%;
     height: auto;
+  }
+
+  /* The fire layer sits exactly on top of the land layer */
+  .hero-map-inner :global(.hero-map-fire) {
+    position: absolute;
+    inset: 0;
+  }
+
+  /* ---------- Ignition on load ---------- */
+
+  .hero-map-inner :global(.hero-map-land) {
+    animation: map-in 0.7s var(--ease-out) both;
+  }
+
+  .hero-map-inner :global(.hero-map-fire) {
+    animation: fire-ignite 1.3s ease-in-out 0.35s both;
+  }
+
+  /* Uneven steps up: embers catching, not a smooth fade */
+  @keyframes fire-ignite {
+    0% {
+      opacity: 0;
+    }
+    18% {
+      opacity: 0.28;
+    }
+    28% {
+      opacity: 0.12;
+    }
+    44% {
+      opacity: 0.55;
+    }
+    52% {
+      opacity: 0.4;
+    }
+    72% {
+      opacity: 0.88;
+    }
+    80% {
+      opacity: 0.74;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  /* The logo's eye glows once as the map lights up */
+  :global(.site-header .brand-mark) {
+    animation: logo-glow 1.6s var(--ease-out) 0.15s backwards;
+  }
+
+  /* The same colour at every step (only its strength changes), so the glow
+     doesn't pass through a dark shadow on the way in */
+  @keyframes logo-glow {
+    0% {
+      filter: drop-shadow(0 0 0 color-mix(in srgb, var(--color-ember) 0%, transparent));
+    }
+    35% {
+      filter: drop-shadow(0 0 0.8rem color-mix(in srgb, var(--color-ember) 95%, transparent));
+    }
+    100% {
+      filter: drop-shadow(0 0 0 color-mix(in srgb, var(--color-ember) 0%, transparent));
+    }
   }
 
   /* Pulsing hotspot: a steady glowing core and a ring that slowly expands */
@@ -101,6 +185,21 @@ const BEHIND_TEXT = 55; // % across
     aspect-ratio: 1;
     border-radius: 50%;
     transform: translate(-50%, -50%);
+    animation: spot-ignite 0.7s var(--ease-out) var(--ignite) both;
+  }
+
+  @keyframes spot-ignite {
+    0% {
+      opacity: 0;
+      scale: 0.2;
+    }
+    50% {
+      opacity: 1;
+      scale: 1.5;
+    }
+    100% {
+      scale: 1;
+    }
   }
 
   .spot::before,
@@ -123,10 +222,24 @@ const BEHIND_TEXT = 55; // % across
     display: none;
   }
 
+  /* One big pulse as the spot lights up, then the usual slow pulse */
   .spot::after {
     border: 2px solid color-mix(in srgb, var(--color-ember) 80%, transparent);
     opacity: 0;
-    animation: spot-pulse 4.5s var(--ease-out) var(--delay) infinite;
+    animation:
+      spot-pulse 4.5s var(--ease-out) calc(var(--ignite) + 1.4s + var(--delay)) infinite,
+      spot-flash 1.4s var(--ease-out) var(--ignite) 1;
+  }
+
+  @keyframes spot-flash {
+    0% {
+      opacity: 1;
+      transform: scale(0.5);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(4.5);
+    }
   }
 
   @keyframes spot-pulse {
@@ -146,9 +259,11 @@ const BEHIND_TEXT = 55; // % across
     }
   }
 
-  /* Reduced motion: the map and hotspots stay still */
+  /* Reduced motion: no ignition; the map and hotspots are shown at once and stay still */
   @media (prefers-reduced-motion: reduce) {
-    .hero-map-inner {
+    .hero-map-inner :global(.hero-map-img),
+    :global(.site-header .brand-mark),
+    .spot {
       animation: none;
     }
 
