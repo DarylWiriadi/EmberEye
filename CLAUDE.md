@@ -63,7 +63,7 @@ Burning activity includes **agricultural and land-clearing fires**, not only wil
 | Home page animation | **GSAP ScrollTrigger** |
 | Icons | **Lucide** everywhere: `lucide-react` in the dashboard, `astro-icon` + `@iconify-json/lucide` on Astro pages (`<Icon name="lucide:flame" />`). Don't mix icon sets |
 | Backend | **Python FastAPI + DuckDB**, querying Parquet files |
-| Spatial index | **H3** hexagon grid (DuckDB `h3` community extension; `h3-js` in the browser for brush/wand selection) |
+| Spatial index | **H3** hexagon grid (DuckDB `h3` community extension in the pipeline; `h3` Python package in the API; `h3-js` in the browser for brush/wand selection) |
 | Pipeline | Python: DuckDB, pandas/Polars, xarray, xclim |
 | Hosting | **Vercel for both** `web/` and `api/` (two Vercel projects from this repo), API pinned to the **Sydney region (`syd1`)**. Fallback: Fly.io `syd` if the API outgrows Vercel (see section 6) |
 
@@ -94,12 +94,11 @@ nasa-space-apps-2026/
 │       └── interim/              Intermediate files (gitignored)
 │
 ├── api/                          FastAPI + DuckDB, deployed to Vercel (syd1)
-│   ├── requirements.txt          fastapi, uvicorn[standard], duckdb
-│   ├── vercel.json               Region, build command, includeFiles
+│   ├── requirements.txt          fastapi, uvicorn[standard], duckdb, h3 (pinned)
+│   ├── vercel.json               Region, includeFiles
 │   ├── main.py                   App setup, CORS, routes (`app` instance)
-│   ├── db.py                     DuckDB connection, extension dir, LOAD h3
-│   ├── scripts/
-│   │   └── install_duckdb_ext.py Build step: installs h3 into ./duckdb_ext
+│   ├── db.py                     DuckDB connection, views over the Parquet files
+│   ├── area.py                   bbox / H3 cells → selected res 5 cells
 │   ├── routes/
 │   │   ├── calendar.py           GET /calendar
 │   │   ├── hotspots.py           GET /hotspots
@@ -284,13 +283,12 @@ Rules:
   ```json
   {
     "regions": ["syd1"],
-    "buildCommand": "python scripts/install_duckdb_ext.py",
     "functions": {
-      "main.py": { "includeFiles": "{data,duckdb_ext}/**", "maxDuration": 60 }
+      "main.py": { "includeFiles": "data/**", "maxDuration": 60 }
     }
   }
   ```
-- **DuckDB H3 extension**: install it at build time into `./duckdb_ext` (`SET extension_directory`, then `INSTALL h3 FROM community`). At runtime, point DuckDB at the same directory and `LOAD h3`. Never download extensions at runtime.
+- **H3 in the API**: the API uses the `h3` Python package (cell conversion only); it does **not** need the DuckDB `h3` extension, so there is no build step and nothing is downloaded at runtime. The pipeline precomputes every H3 index the API needs (e.g. `global/cells_res5.parquet` has each cell's res 3 parent and centre lat/lng). The DuckDB `h3` extension is used only by the offline pipeline.
 - **Read-only filesystem**: open DuckDB in memory, read Parquet files by path, and set `temp_directory` to `/tmp`.
 - **Limits to respect**: function bundle ≤ 500 MB (up to 5 GB with the "large functions" beta), so the Parquet data must fit; responses ≤ 4.5 MB unless streamed, so **stream CSV exports** and keep `/hotspots` responses small (bbox + date, with a cap).
 - **Static files** (`static/`): mount with FastAPI `StaticFiles` so Vercel serves them from its CDN.
@@ -298,7 +296,7 @@ Rules:
 
 ### Fallback: Fly.io
 
-Switch to Fly.io (`syd`, always-on, 1 GB machine, `auto_stop_machines = "off"`, `min_machines_running = 1`) only if the data exceeds Vercel's bundle limit or cold starts are too slow in testing. That path needs a small Dockerfile (python:3.12-slim, install requirements, install the h3 extension at build time, run uvicorn on port 8080) and a credit card on the Fly account.
+Switch to Fly.io (`syd`, always-on, 1 GB machine, `auto_stop_machines = "off"`, `min_machines_running = 1`) only if the data exceeds Vercel's bundle limit or cold starts are too slow in testing. That path needs a small Dockerfile (python:3.12-slim, install requirements, run uvicorn on port 8080) and a credit card on the Fly account.
 
 ## 7. Dashboard (frontend)
 

@@ -1,3 +1,4 @@
-fastapi
-uvicorn[standard]
-duckdb
+fastapi==0.162.7
+uvicorn[standard]==0.54.0
+duckdb==2.0.0
+h3==4.5.0

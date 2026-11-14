@@ -4,6 +4,7 @@ Writes to api/data/ (committed to git, so keep every file < 100 MB):
 
     global/monthly_res5/<YYYY>.parquet cell5, month, fire_days, detections, frp_sum
     global/daily_res3/<YYYY>.parquet cell3, date, fire_days, detections, frp_sum
+    global/cells_res5.parquet        cell5, cell3, lat, lng (centre of every cell that ever burned)
     global/days.parquet              date, sensor, gap
     global/series_monthly.parquet    whole-world monthly series: raw per sensor + harmonized
     climatology/monthly_res5.parquet cell5, moy, median, mean, active_years
@@ -42,6 +43,15 @@ def monthly_res5(con):
     for (year,) in run(con, "SELECT DISTINCT year(month) FROM monthly ORDER BY 1"):
         run(con, f"""COPY (SELECT * FROM monthly WHERE year(month) = {year} ORDER BY cell5, month)
                      TO '{(out / f"{year}.parquet").as_posix()}' ({PQ})""")
+    # Centre of every res 5 cell that ever burned, so the API can turn a bbox into cells.
+    run(con, f"""
+        COPY (SELECT cell5,
+                     h3_cell_to_parent(cell5, {C.H3_GLOBAL_DAILY_RES}) AS cell3,
+                     h3_cell_to_lat(cell5)::FLOAT AS lat,
+                     h3_cell_to_lng(cell5)::FLOAT AS lng
+              FROM (SELECT DISTINCT cell5 FROM monthly) ORDER BY lat, lng)
+        TO '{(OUT / "global" / "cells_res5.parquet").as_posix()}' ({PQ})
+    """)
 
 
 def daily_res3(con):
