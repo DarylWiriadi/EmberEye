@@ -1,0 +1,168 @@
+---
+import { Image } from 'astro:assets';
+import fireMap from '../../assets/fire-map.webp';
+
+/*
+ * Glowing world map behind the hero. Every dot is real: grey dots are land
+ * (1-degree grid, Natural Earth), ember dots glow with the total harmonized
+ * fire activity in each 1-degree box, Jul 2002 to Nov 2026 (api/data/global,
+ * monthly fire cell-days per H3 res 5 cell). Only boxes above the median glow.
+ *
+ * The spots that pulse are the 12 busiest boxes, at least 15 degrees apart.
+ * Positions are % of the map (x = longitude, y = latitude, 77.5N to 57.5S).
+ * Regenerate the image and these together if the data changes.
+ */
+const spots = [
+  { x: 70.97, y: 34.93, place: 'Northern India (crop burning)' },
+  { x: 56.53, y: 62.87, place: 'Congo / Angola savanna' },
+  { x: 47.36, y: 50.37, place: 'Guinea, West Africa' },
+  { x: 60.14, y: 69.49, place: 'Mozambique / Malawi' },
+  { x: 59.31, y: 51.1, place: 'South Sudan' },
+  { x: 79.58, y: 47.43, place: 'Cambodia' },
+  { x: 52.36, y: 51.84, place: 'Nigeria' },
+  { x: 86.81, y: 67.28, place: 'Northern Australia' },
+  { x: 32.64, y: 69.49, place: 'Bolivia' },
+  { x: 75.69, y: 41.54, place: 'Myanmar / Bangladesh' },
+  { x: 81.81, y: 59.19, place: 'Borneo' },
+  { x: 37.36, y: 61.4, place: 'Northern Brazil' },
+];
+---
+
+<div class="hero-map" aria-hidden="true">
+  <div class="hero-map-track" data-parallax="0.18" data-parallax-start="top top">
+    <div class="hero-map-inner">
+      <Image
+        src={fireMap}
+        alt=""
+        widths={[960, 1440, 2160, 2880]}
+        sizes="max(100vw, 48rem)"
+        loading="eager"
+        class="hero-map-img"
+      />
+      {spots.map((s, i) => <span class="spot" style={`--x: ${s.x}%; --y: ${s.y}%; --delay: ${(i * 0.73) % 4.5}s`} />)}
+    </div>
+  </div>
+</div>
+<p class="hero-map-caption">Glowing areas: where fires burned most, 2002 to 2026, in our harmonized record.</p>
+
+<style>
+  .hero-map {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    pointer-events: none;
+    /* Dimmed behind the text on the left (keeps text contrast at 4.5:1 or better),
+       full strength from the middle, fading out at the top and bottom */
+    -webkit-mask-image:
+      linear-gradient(to right, rgb(0 0 0 / 0.3), rgb(0 0 0 / 0.45) 40%, #000 60%),
+      linear-gradient(to bottom, transparent, #000 12%, #000 85%, transparent);
+    -webkit-mask-composite: source-in;
+    mask-image:
+      linear-gradient(to right, rgb(0 0 0 / 0.3), rgb(0 0 0 / 0.45) 40%, #000 60%),
+      linear-gradient(to bottom, transparent, #000 12%, #000 85%, transparent);
+    mask-composite: intersect;
+  }
+
+  .hero-map-track {
+    width: max(100%, 48rem);
+  }
+
+  .hero-map-inner {
+    position: relative;
+    opacity: 0.8;
+    animation: map-in 1.8s var(--ease-out) both;
+  }
+
+  .hero-map-inner :global(.hero-map-img) {
+    width: 100%;
+    height: auto;
+  }
+
+  /* Pulsing hotspot: a steady glowing core and a ring that slowly expands */
+  .spot {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    width: 1.4%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .spot::before,
+  .spot::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+  }
+
+  .spot::before {
+    inset: 25%;
+    background: var(--color-spark);
+    box-shadow:
+      0 0 0.5rem 0.15rem color-mix(in srgb, var(--color-spark) 70%, transparent),
+      0 0 1.5rem 0.4rem color-mix(in srgb, var(--color-ember) 45%, transparent);
+  }
+
+  .spot::after {
+    border: 2px solid color-mix(in srgb, var(--color-ember) 80%, transparent);
+    opacity: 0;
+    animation: spot-pulse 4.5s var(--ease-out) var(--delay) infinite;
+  }
+
+  @keyframes spot-pulse {
+    0% {
+      opacity: 0.8;
+      transform: scale(0.5);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(3.2);
+    }
+  }
+
+  @keyframes map-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  .hero-map-caption {
+    position: absolute;
+    right: 5em;
+    bottom: 1.5em;
+    z-index: 1;
+    max-width: 24em;
+    font-size: max(0.875rem, 0.8em); /* never below 14px */
+    text-align: right;
+    color: var(--color-text-subtle);
+  }
+
+  /* Reduced motion: the map and hotspots stay still */
+  @media (prefers-reduced-motion: reduce) {
+    .hero-map-inner {
+      animation: none;
+    }
+
+    .spot::after {
+      animation: none;
+      opacity: 0.5;
+      transform: scale(1.8);
+    }
+  }
+
+  /* Phones (same rule as the hero's stacked layout) */
+  @media (max-width: 47.99rem) and (hover: none) and (pointer: coarse), (max-width: 29.99rem) {
+    .hero-map-caption {
+      left: var(--gutter);
+      right: var(--gutter);
+      bottom: var(--space-m);
+      max-width: none;
+      text-align: left;
+    }
+  }
+</style>

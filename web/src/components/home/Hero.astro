@@ -1,5 +1,7 @@
 ---
 import { Icon } from 'astro-icon/components';
+import HeroMap from './HeroMap.astro';
+import SplitWords from './SplitWords.astro';
 import { pages, site } from '../../lib/site';
 ---
 
@@ -18,10 +20,13 @@ import { pages, site } from '../../lib/site';
   so text still grows when someone zooms in to read.
 -->
 <section class="hero" aria-labelledby="hero-title">
+  <HeroMap />
   <div class="hero-inner">
     <div class="hero-copy" data-reveal-group="load">
       <p class="hero-eyebrow">NASA Space Apps Challenge 2026</p>
-      <h1 id="hero-title" class="hero-title">{site.tagline}</h1>
+      <h1 id="hero-title" class="hero-title" aria-label={site.tagline} data-reveal-words>
+        <SplitWords text={site.tagline} />
+      </h1>
       <p class="hero-subtitle">
         {site.name} merges NASA’s MODIS and VIIRS satellite hotspots into one harmonized history,
         so you can see when and where fires burn, spot unusual seasons and compare today with the
@@ -56,6 +61,8 @@ import { pages, site } from '../../lib/site';
     /* Text follows the same scale (its em resolves against the hero scale). */
     --hero-text: 1em;
     font-size: var(--hero-scale);
+    position: relative;
+    isolation: isolate;
     overflow: hidden;
     /* Always fill the first screen (below the sticky nav), at any zoom level,
        so the next section never peeks in. Content is centred vertically.
@@ -65,7 +72,20 @@ import { pages, site } from '../../lib/site';
     align-items: center;
   }
 
+  /* Film grain over the hero background (same texture as the story below) */
+  .hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background-image: var(--texture-grain);
+    opacity: 0.05;
+    pointer-events: none;
+  }
+
   .hero-inner {
+    position: relative;
+    z-index: 1; /* above the map and grain */
     display: grid;
     grid-template-columns: 1.1fr 0.9fr;
     align-items: center;
@@ -130,9 +150,12 @@ import { pages, site } from '../../lib/site';
     aspect-ratio: 1;
     border: 0.0625em dashed var(--color-border-strong);
     border-radius: 1.5em;
+    /* Frosted glass, so the fire map glows through behind it */
     background:
-      radial-gradient(circle at 18% 82%, color-mix(in srgb, var(--color-ember) 28%, transparent), transparent 55%),
-      var(--color-surface);
+      radial-gradient(circle at 18% 82%, color-mix(in srgb, var(--color-ember) 22%, transparent), transparent 55%),
+      color-mix(in srgb, var(--color-surface) 30%, transparent);
+    -webkit-backdrop-filter: blur(0.3em);
+    backdrop-filter: blur(0.3em);
   }
 
   .hero-visual-label {

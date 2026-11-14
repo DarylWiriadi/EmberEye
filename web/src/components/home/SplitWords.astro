@@ -1,0 +1,24 @@
+---
+/*
+ * Splits a heading into words so each can rise into view (src/scripts/reveal.ts).
+ * The word spans are hidden from screen readers; give the heading an aria-label
+ * with the full text so it's read as one phrase, e.g.
+ *   <h2 aria-label={title} data-reveal-words><SplitWords text={title} /></h2>
+ */
+interface Props {
+  text: string;
+}
+
+const words = Astro.props.text.split(/\s+/).filter(Boolean);
+---
+
+{
+  words.map((word, i) => (
+    <>
+      <span class="word" aria-hidden="true">
+        <span class="word-inner">{word}</span>
+      </span>
+      {i < words.length - 1 && ' '}
+    </>
+  ))
+}
