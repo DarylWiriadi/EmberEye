@@ -2,65 +2,36 @@
 import { Icon } from 'astro-icon/components';
 import SectionHeader from './SectionHeader.astro';
 
-// How data moves from the satellites to the screen, in order.
+// How data gets from the satellites to the screen. Kept general on purpose.
+// tone: 'cool' for the data side, 'warm' for what people see.
 const steps = [
   {
     icon: 'lucide:satellite',
-    title: 'NASA FIRMS',
-    text: 'MODIS and VIIRS fire hotspots, 2002 to today.',
-    live: false,
+    title: 'Satellites',
+    text: 'MODIS and VIIRS spot fire hotspots from orbit, every day.',
+    tag: 'NASA data',
+    tone: 'cool',
   },
   {
     icon: 'lucide:workflow',
-    title: 'Python pipeline',
-    text: 'Cleans the detections, groups them into H3 cells and calibrates MODIS against VIIRS.',
-    live: false,
+    title: 'Harmonize',
+    text: 'We clean the data and put both sensors on one consistent scale.',
+    tag: 'Python',
+    tone: 'cool',
   },
   {
-    icon: 'lucide:file-stack',
-    title: 'Parquet files',
-    text: 'Compact, ready-made tables of daily and monthly counts.',
-    live: false,
-  },
-  {
-    icon: 'lucide:server',
-    title: 'FastAPI + DuckDB',
-    text: 'Answers queries for any area and date range, hosted in Sydney.',
-    live: true,
+    icon: 'lucide:database',
+    title: 'Store and serve',
+    text: 'Ready-made summaries are kept in compact files and served by a small API.',
+    tag: 'API + database',
+    tone: 'warm',
   },
   {
     icon: 'lucide:monitor',
-    title: 'Web app',
-    text: 'This site: the calendar, map, charts and simulation.',
-    live: true,
-  },
-];
-
-// The tools in each layer, and why we chose them.
-const layers = [
-  {
-    icon: 'lucide:workflow',
-    title: 'Data pipeline',
-    tools: ['Python', 'DuckDB', 'pandas', 'H3', 'xarray', 'xclim'],
-    why: 'DuckDB processes two decades of global hotspots on a laptop, and the H3 hexagon grid gives every place on Earth cells of a similar size.',
-  },
-  {
-    icon: 'lucide:server',
-    title: 'Backend API',
-    tools: ['FastAPI', 'DuckDB', 'Parquet', 'Vercel (Sydney)'],
-    why: 'DuckDB reads the Parquet files directly, so there’s no database server to run. The API sits in Sydney, close to Australian users.',
-  },
-  {
-    icon: 'lucide:monitor',
-    title: 'Web app',
-    tools: ['Astro', 'React', 'TypeScript', 'MapLibre GL', 'deck.gl', 'Vega-Lite', 'uPlot', 'Zustand', 'TanStack Query', 'GSAP'],
-    why: 'Static pages load fast, and the dashboard draws large numbers of hotspots on the GPU with deck.gl.',
-  },
-  {
-    icon: 'lucide:cpu',
-    title: 'Simulation',
-    tools: ['TypeScript', 'Web Worker', 'Typed arrays', 'Seeded random numbers'],
-    why: 'Runs in a background thread so the map stays smooth, and the same inputs always give the same result.',
+    title: 'Explore',
+    text: 'You see it all on the map, calendar and charts, right in your browser.',
+    tag: 'Web app',
+    tone: 'warm',
   },
 ];
 ---
@@ -71,237 +42,191 @@ const layers = [
       eyebrow="How it’s built"
       title="From satellite to screen"
       headingId="stack-title"
-      lede="NASA open data, processed with Python and served by a small API. The heavy lifting happens offline, so the live site only reads compact, ready-made tables."
+      lede="Fire data travels from NASA satellites to your screen in four steps. The heavy processing happens ahead of time, so the site stays quick."
     />
 
-    <h3 class="subhead">How the data flows</h3>
     <ol class="flow" role="list">
       {
         steps.map((step, i) => (
-          <li class="card flow-step">
-            <div class="flow-top">
-              <span class="flow-icon">
-                <Icon name={step.icon} aria-hidden="true" />
-              </span>
-              <span class:list={['flow-tag', { 'flow-tag--live': step.live }]}>
-                {step.live ? 'Live' : 'Offline'}
-              </span>
+          <li class:list={['step', `step--${step.tone}`]}>
+            <span class="node">
+              <Icon name={step.icon} aria-hidden="true" />
+            </span>
+            <div class="step-body">
+              <p class="step-tag">{step.tag}</p>
+              <h3 class="step-title">{step.title}</h3>
+              <p class="step-text">{step.text}</p>
             </div>
-            <h4 class="flow-title">{step.title}</h4>
-            <p class="flow-text">{step.text}</p>
-            {i < steps.length - 1 && (
-              <span class="flow-arrow" aria-hidden="true">
-                <Icon name="lucide:arrow-right" />
-              </span>
-            )}
+            {i < steps.length - 1 && <span class="link" aria-hidden="true" />}
           </li>
         ))
       }
     </ol>
-
-    <h3 class="subhead">The tools</h3>
-    <div class="layers">
-      {
-        layers.map((layer) => (
-          <article class="card layer">
-            <div class="layer-head">
-              <span class="layer-icon">
-                <Icon name={layer.icon} aria-hidden="true" />
-              </span>
-              <h4>{layer.title}</h4>
-            </div>
-            <ul class="chips" role="list">
-              {layer.tools.map((tool) => (
-                <li class="chip">{tool}</li>
-              ))}
-            </ul>
-            <p class="layer-why">{layer.why}</p>
-          </article>
-        ))
-      }
-    </div>
   </div>
 </section>
 
 <style>
-  .subhead {
-    margin-bottom: var(--space-m);
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    font-weight: 500;
-    letter-spacing: var(--tracking-wide);
-    text-transform: uppercase;
-    color: var(--color-text-muted);
-  }
-
-  .flow + .subhead {
-    margin-top: var(--space-2xl);
-  }
-
-  /* ---------- Flow diagram ---------- */
-
-  /* Narrow screens: steps stacked, arrows pointing down */
   .flow {
-    --flow-gap: 2.5rem;
+    --node: 4rem;
+    --link-gap: 0.75rem; /* space between a node and its connecting line */
+    --dash: 6px;
+    --dash-period: 14px;
     display: grid;
-    gap: var(--flow-gap);
   }
 
-  .flow-step {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2xs);
+  .step {
+    --tone: var(--color-sky);
+    position: relative;
   }
 
-  .flow-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: var(--space-2xs);
+  .step--warm {
+    --tone: var(--color-ember);
   }
 
-  .flow-icon {
+  /* Icon in a circle */
+  .node {
+    position: relative;
+    z-index: 1;
     display: grid;
     place-items: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: var(--radius-m);
-    background: color-mix(in srgb, var(--color-sky) 14%, transparent);
-    color: var(--color-sky);
+    width: var(--node);
+    height: var(--node);
+    border: 1px solid color-mix(in srgb, var(--tone) 55%, transparent);
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--tone) 12%, var(--color-surface));
+    box-shadow: 0 0 0 0.4rem color-mix(in srgb, var(--tone) 7%, transparent);
+    color: var(--tone);
   }
 
-  .flow-icon :global(svg) {
-    width: 1.25rem;
-    height: 1.25rem;
+  .node :global(svg) {
+    width: 1.6rem;
+    height: 1.6rem;
   }
 
-  .flow-tag {
-    padding: 0.1rem 0.5rem;
-    border: 1px solid currentColor;
-    border-radius: var(--radius-pill);
+  .step-tag {
     font-family: var(--font-mono);
     font-size: var(--text-xs);
-    color: var(--color-sky);
+    color: var(--tone);
   }
 
-  .flow-tag--live {
-    color: var(--color-ember);
+  .step-title {
+    margin-top: var(--space-3xs);
+    font-size: var(--text-xl);
   }
 
-  .flow-step:has(.flow-tag--live) .flow-icon {
-    background: color-mix(in srgb, var(--color-ember) 14%, transparent);
-    color: var(--color-ember);
-  }
-
-  .flow-title {
-    font-size: var(--text-lg);
-  }
-
-  .flow-text {
+  .step-text {
+    margin-top: var(--space-2xs);
     font-size: var(--text-sm);
     color: var(--color-text-muted);
   }
 
-  .flow-arrow {
+  /* Dashed connecting line with dashes drifting along it */
+  .link {
     position: absolute;
+    background-repeat: repeat;
+    animation: flow-x 1.4s linear infinite;
+  }
+
+  /* Arrowhead at the end of each line */
+  .link::after {
+    content: '';
+    position: absolute;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-top: 2px solid var(--tone);
+    border-right: 2px solid var(--tone);
+  }
+
+  /* ---------- Phones: vertical flow, line down the left ---------- */
+
+  .step {
+    display: grid;
+    grid-template-columns: var(--node) 1fr;
+    column-gap: var(--space-m);
+    padding-bottom: var(--space-xl);
+  }
+
+  .step:last-child {
+    padding-bottom: 0;
+  }
+
+  .step-body {
+    padding-top: 0.6rem;
+  }
+
+  .link {
+    top: calc(var(--node) + var(--link-gap));
+    bottom: var(--link-gap);
+    left: calc(var(--node) / 2 - 1px);
+    width: 2px;
+    background-image: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--tone) 70%, transparent) 0 var(--dash),
+      transparent var(--dash) var(--dash-period)
+    );
+    background-size: 2px var(--dash-period);
+    animation-name: flow-y;
+  }
+
+  .link::after {
+    bottom: 1px;
     left: 50%;
-    bottom: calc(var(--flow-gap) / -2);
-    display: grid;
-    place-items: center;
-    color: var(--color-text-subtle);
-    transform: translate(-50%, 50%) rotate(90deg);
+    transform: translateX(-50%) rotate(135deg);
   }
 
-  .flow-arrow :global(svg) {
-    width: 1.25rem;
-    height: 1.25rem;
-  }
+  /* ---------- Tablets and up: one row, lines between the circles ---------- */
 
-  /* Wide screens: one row, arrows pointing right */
-  @media (min-width: 60rem) {
+  @media (min-width: 40rem) {
     .flow {
-      --flow-gap: 2rem;
-      grid-template-columns: repeat(5, 1fr);
-    }
-
-    .flow-arrow {
-      left: auto;
-      right: calc(var(--flow-gap) / -2);
-      top: 50%;
-      bottom: auto;
-      transform: translate(50%, -50%);
-    }
-  }
-
-  /* ---------- Layer cards ---------- */
-
-  .layers {
-    display: grid;
-    gap: var(--space-m);
-  }
-
-  @media (min-width: 36rem) {
-    .layers {
-      grid-template-columns: repeat(2, 1fr);
-    }
-  }
-
-  @media (min-width: 68rem) {
-    .layers {
       grid-template-columns: repeat(4, 1fr);
     }
+
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 var(--space-s);
+      text-align: center;
+    }
+
+    .step-body {
+      max-width: 16rem;
+      padding-top: var(--space-m);
+    }
+
+    .link {
+      top: calc(var(--node) / 2 - 1px);
+      bottom: auto;
+      left: calc(50% + var(--node) / 2 + var(--link-gap));
+      width: calc(100% - var(--node) - 2 * var(--link-gap));
+      height: 2px;
+      background-image: linear-gradient(
+        to right,
+        color-mix(in srgb, var(--tone) 70%, transparent) 0 var(--dash),
+        transparent var(--dash) var(--dash-period)
+      );
+      background-size: var(--dash-period) 2px;
+      animation-name: flow-x;
+    }
+
+    .link::after {
+      top: 50%;
+      right: 1px;
+      bottom: auto;
+      left: auto;
+      transform: translateY(-50%) rotate(45deg);
+    }
   }
 
-  .layer {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-s);
+  @keyframes flow-x {
+    to {
+      background-position-x: var(--dash-period);
+    }
   }
 
-  .layer-head {
-    display: flex;
-    align-items: center;
-    gap: var(--space-xs);
-  }
-
-  .layer-head h4 {
-    font-size: var(--text-lg);
-  }
-
-  .layer-icon {
-    display: grid;
-    place-items: center;
-    flex-shrink: 0;
-    width: 2.25rem;
-    height: 2.25rem;
-    border: 1px solid var(--color-border-strong);
-    border-radius: 50%;
-    color: var(--color-text-muted);
-  }
-
-  .layer-icon :global(svg) {
-    width: 1.1rem;
-    height: 1.1rem;
-  }
-
-  .chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2xs);
-  }
-
-  .chip {
-    padding: 0.2rem 0.6rem;
-    border-radius: var(--radius-pill);
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    color: var(--color-text);
-  }
-
-  .layer-why {
-    font-size: var(--text-sm);
-    color: var(--color-text-muted);
+  @keyframes flow-y {
+    to {
+      background-position-y: var(--dash-period);
+    }
   }
 </style>
