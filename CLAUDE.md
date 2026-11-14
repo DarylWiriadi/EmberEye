@@ -43,7 +43,7 @@ Burning activity includes **agricultural and land-clearing fires**, not only wil
 | 10 | Simulation download | Differentiator |
 | 11 | Simulation history (reload, compare, share links) | Differentiator |
 | 12 | Risk panel (global, FWI-based) | Differentiator |
-| — | Home page scroll story + methodology page | Presentation |
+| — | Home page scroll story (incl. "How it works" methodology section) | Presentation |
 
 **Cut order if short on time**: simulation history comparison → magic wand → paint brush (keep rectangle) → risk panel level 2 → featured fires → simulation. Never cut features 1–6.
 
@@ -51,7 +51,7 @@ Burning activity includes **agricultural and land-clearing fires**, not only wil
 
 | Layer | Choice |
 |---|---|
-| Site framework | **Astro** (home + methodology pages, static) |
+| Site framework | **Astro** (home page, static; no separate methodology page) |
 | Dashboard | **React + TypeScript**, mounted as `<Dashboard client:only="react" />` |
 | Map | **MapLibre GL JS** via `react-map-gl/maplibre` |
 | Data layers | **deck.gl** via `MapboxOverlay` (added with `useControl`) |
@@ -63,9 +63,9 @@ Burning activity includes **agricultural and land-clearing fires**, not only wil
 | Home page animation | **GSAP ScrollTrigger** |
 | Icons | **Lucide** everywhere: `lucide-react` in the dashboard, `astro-icon` + `@iconify-json/lucide` on Astro pages (`<Icon name="lucide:flame" />`). Don't mix icon sets |
 | Backend | **Python FastAPI + DuckDB**, querying Parquet files |
-| Spatial index | **H3** hexagon grid (DuckDB `h3` community extension; `h3-js` in the browser for brush/wand selection) |
+| Spatial index | **H3** hexagon grid (DuckDB `h3` community extension in the pipeline; `h3` Python package in the API; `h3-js` in the browser for brush/wand selection) |
 | Pipeline | Python: DuckDB, pandas/Polars, xarray, xclim |
-| Hosting | **Vercel for both** `web/` and `api/` (two Vercel projects from this repo), API pinned to the **Sydney region (`syd1`)**. Fallback: Fly.io `syd` if the API outgrows Vercel (see section 6) |
+| Hosting | **One Vercel project** (Root Directory = repo root) serving the Astro site and the FastAPI API as a Python function under `/api`, pinned to the **Sydney region (`syd1`)**; config in the root `vercel.json`. Individual hotspot points in **Cloudflare R2**. Fallback: Fly.io `syd` if the API outgrows Vercel (see section 6) |
 
 Do not use GraphQL, Next.js, PostgreSQL/PostGIS, Docker (unless we fall back to Fly.io) or a separate SPA framework. Keep it simple.
 
@@ -93,19 +93,21 @@ nasa-space-apps-2026/
 │       ├── raw/                  Downloads (gitignored)
 │       └── interim/              Intermediate files (gitignored)
 │
-├── api/                          FastAPI + DuckDB, deployed to Vercel (syd1)
-│   ├── requirements.txt          fastapi, uvicorn[standard], duckdb
-│   ├── vercel.json               Region, build command, includeFiles
-│   ├── main.py                   App setup, CORS, routes (`app` instance)
-│   ├── db.py                     DuckDB connection, extension dir, LOAD h3
-│   ├── scripts/
-│   │   └── install_duckdb_ext.py Build step: installs h3 into ./duckdb_ext
-│   ├── routes/
-│   │   ├── calendar.py           GET /calendar
-│   │   ├── hotspots.py           GET /hotspots
-│   │   ├── stats.py              GET /stats
-│   │   ├── export.py             GET /export.csv, /export-summary.csv
-│   │   └── risk.py               GET /risk
+├── vercel.json                   One Vercel project: builds web/, runs api/index.py at /api/*
+├── api/                          FastAPI + DuckDB, a Python function in the same Vercel project
+│   ├── requirements.txt          fastapi, uvicorn[standard], duckdb, h3 (pinned)
+│   ├── index.py                  The function: app setup, CORS, all routes under /api
+│   ├── _lib/                     Helpers (underscore = Vercel won't make them functions)
+│   │   ├── db.py                 DuckDB connection, views over Parquet, R2 setup
+│   │   ├── area.py               bbox / H3 cells → selected res 5 cells
+│   │   ├── points.py             Hotspot points: R2, or bundled fallback region
+│   │   └── routes/
+│   │       ├── calendar.py       GET /api/calendar
+│   │       ├── hotspots.py       GET /api/hotspots
+│   │       ├── export.py         GET /api/export.csv, /api/export-summary.csv
+│   │       ├── stats.py          GET /api/stats (planned)
+│   │       └── risk.py           GET /api/risk (planned)
+│   ├── duckdb_ext/               Bundled httpfs extension (Linux build committed)
 │   ├── static/                   Sim inputs, presets, featured fires, towns (served from CDN)
 │   └── data/                     Parquet outputs from the pipeline
 │       ├── global/               Monthly counts per H3 res 5 + daily counts per H3 res 3
@@ -126,7 +128,6 @@ nasa-space-apps-2026/
         ├── pages/
         │   ├── index.astro       Home (scroll story)
         │   ├── dashboard.astro   Mounts <Dashboard client:only="react" />
-        │   └── methodology.astro
         ├── components/
         │   ├── home/
         │   │   ├── Hero.astro
@@ -223,7 +224,7 @@ Raw downloads stay out of git (many GB). Only the smaller Parquet outputs go int
    - Backup routes: the download page's yearly country files, or the original monthly global science files (MODIS MCD14ML, VIIRS VNP14IMGML) from the University of Maryland SFTP server.
    - Archive requests (CSV) are processed in the background and a download link is emailed. FIRMS delivers separate files per source (and often SP vs NRT).
    - Quick start: the same page offers **yearly summaries by country as direct CSV downloads** (no request). Handy for quick pipeline tests while global requests process.
-   - NRT data is replaced by science-quality SP data with a ~5-month lag, so the most recent months are NRT. Note this on the methodology page.
+   - NRT data is replaced by science-quality SP data with a ~5-month lag, so the most recent months are NRT. Note this in the home page's "How it works" section.
 2. **Clean**:
    - Keep FIRMS `type = 0` (presumed vegetation fire, includes agricultural burns). Drop volcanoes (1), static land sources like gas flares (2) and offshore (3). (Sample check: ~95% of MODIS rows are `type 0`.)
    - MODIS: keep **Aqua only** (`satellite IN ('Aqua', 'A')`).
@@ -241,14 +242,14 @@ Raw downloads stay out of git (many GB). Only the smaller Parquet outputs go int
    - 2012 → 2 Nov 2026: VIIRS S-NPP as is.
    - After 2 Nov 2026: VIIRS NOAA-20 cell-days × a NOAA-20→S-NPP ratio, calibrated the same way on their overlap year **2024** (the NOAA-20 year we downloaded globally). Expect a ratio near 1 (same sensor, same orbit ~50 min apart), but compute and report it.
    - Pitch point: the sensor handover the brief describes happened during this hackathon season, and the pipeline handles it.
-6. **Aggregate** to Parquet, at different detail levels so the deployed data stays small (target **< ~200 MB total**, every file < 100 MB for GitHub, well under Vercel's 500 MB function limit):
+6. **Aggregate** to Parquet, at different detail levels so the deployed data stays small (target **< ~200 MB total**, every file < 100 MB for GitHub, and the deployed API must fit Vercel's **225 MB Python function limit** together with its packages and the bundled httpfs extension):
    - Global **monthly** counts per H3 **res 5** cell → calendar years view + anomalies anywhere.
    - Global **daily** counts per H3 **res 3** cell → calendar month view anywhere.
    - Demo regions: **daily** counts per H3 **res 7** + **raw hotspot points** → map dots, per-fire stats, hotspot CSV export.
    - Raw downloads (~10–20 GB) never leave the local machine.
    - Precompute per-cell monthly medians and multi-year means for anomaly views.
    - Sort/partition files by region and date so DuckDB can skip data.
-7. **Validate**: calibrate on 2012–2016, predict 2017–2019 from MODIS, compare with actual VIIRS. Output metrics + a **raw vs harmonized** chart (the raw series jumps at 2012, the harmonized one doesn't). This chart goes on the methodology page and in the pitch.
+7. **Validate**: calibrate on 2012–2016, predict 2017–2019 from MODIS, compare with actual VIIRS. Output metrics + a **raw vs harmonized** chart (the raw series jumps at 2012, the harmonized one doesn't). This chart goes on the home page ("How it works") and in the pitch.
 
 **Known limitation (state it openly)**: the map can't invent VIIRS-detail points before 2012. Pre-2012 map points are original MODIS detections; the calendar and stats use harmonized counts.
 
@@ -279,26 +280,19 @@ Rules:
 
 ### Hosting the API on Vercel
 
-- `api/` is its own Vercel project (Root Directory = `api`). Vercel auto-detects the FastAPI `app` in `main.py`. The web app reads the API URL from an env var (e.g. `PUBLIC_API_URL`).
-- `vercel.json`:
-  ```json
-  {
-    "regions": ["syd1"],
-    "buildCommand": "python scripts/install_duckdb_ext.py",
-    "functions": {
-      "main.py": { "includeFiles": "{data,duckdb_ext}/**", "maxDuration": 60 }
-    }
-  }
-  ```
-- **DuckDB H3 extension**: install it at build time into `./duckdb_ext` (`SET extension_directory`, then `INSTALL h3 FROM community`). At runtime, point DuckDB at the same directory and `LOAD h3`. Never download extensions at runtime.
+- **One Vercel project** for the whole site, Root Directory = repo root (empty), framework "Other". The root `vercel.json` installs and builds `web/` (output `web/dist`) and runs `api/index.py` as a Python function; a rewrite sends every `/api/*` request to it, and FastAPI serves all routes under `/api`. The website calls the API with relative URLs (`/api/calendar`), so there is no separate API address and no CORS in production. In local dev, Astro's dev server forwards `/api` to `uvicorn index:app --port 8000` (see `web/astro.config.mjs`).
+- Helpers live in `api/_lib/`: Vercel turns every `.py` file in `api/` into its own function unless the file or folder starts with `_`.
+- Environment variables (project settings): `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`. Deployment Protection (Vercel Authentication) must be **disabled** so the site is public.
+- Vercel sets `AWS_REGION` (e.g. `ap-southeast-2`); the DuckDB R2 secret sets `REGION 'auto'` so R2 doesn't reject it. `/api/health` shows the R2 status and the last R2 error (keys masked).
+- **H3 in the API**: the API uses the `h3` Python package (cell conversion only); it does **not** need the DuckDB `h3` extension, so there is no build step and nothing is downloaded at runtime. The pipeline precomputes every H3 index the API needs (e.g. `global/cells_res5.parquet` has each cell's res 3 parent and centre lat/lng). The DuckDB `h3` extension is used only by the offline pipeline.
 - **Read-only filesystem**: open DuckDB in memory, read Parquet files by path, and set `temp_directory` to `/tmp`.
-- **Limits to respect**: function bundle ≤ 500 MB (up to 5 GB with the "large functions" beta), so the Parquet data must fit; responses ≤ 4.5 MB unless streamed, so **stream CSV exports** and keep `/hotspots` responses small (bbox + date, with a cap).
+- **Limits to respect**: a **Python function bundle is limited to 225 MB** (measured on a real deploy: the build fails with `LAMBDA_SIZE_EXCEEDED`). Target ~205 MB: global counts ~127 MB, httpfs 27 MB, SE Australia fallback points 20 MB (the only offline region), packages ~23 MB. Files the API doesn't read (and `web/`, `pipeline/`) are excluded with `excludeFiles` in the root `vercel.json` (`.vercelignore` was not applied in testing: the build log said "Removed 0 ignored files"). Individual hotspot points live in Cloudflare R2. Responses ≤ 4.5 MB unless streamed, so **stream CSV exports** and keep `/hotspots` responses small (bbox + date, with a cap).
 - **Static files** (`static/`): mount with FastAPI `StaticFiles` so Vercel serves them from its CDN.
 - **Cold starts**: the first request after idle loads Python + DuckDB. Warm the site up before presenting.
 
 ### Fallback: Fly.io
 
-Switch to Fly.io (`syd`, always-on, 1 GB machine, `auto_stop_machines = "off"`, `min_machines_running = 1`) only if the data exceeds Vercel's bundle limit or cold starts are too slow in testing. That path needs a small Dockerfile (python:3.12-slim, install requirements, install the h3 extension at build time, run uvicorn on port 8080) and a credit card on the Fly account.
+Switch to Fly.io (`syd`, always-on, 1 GB machine, `auto_stop_machines = "off"`, `min_machines_running = 1`) only if the data exceeds Vercel's bundle limit or cold starts are too slow in testing. That path needs a small Dockerfile (python:3.12-slim, install requirements, run uvicorn on port 8080) and a credit card on the Fly account.
 
 ## 7. Dashboard (frontend)
 
@@ -439,11 +433,11 @@ One ZIP (built in the browser with JSZip):
 ### Home (Astro, mostly static)
 
 Sections top to bottom:
-1. Top bar: name/logo, links to Dashboard and Methodology
+1. Top bar: name/logo, link to Dashboard, jump links to home sections
 2. Hero: mission line, subtitle, "Open the dashboard" + "How it works", spreading-fire visual (abstract dot grid now; later a looping muted video of a real simulation on the map)
 3. The problem
 4. The data story (MODIS since 2000, VIIRS since 2012)
-5. **Raw vs harmonized chart** (must keep)
+5. **How it works** (`id="how-it-works"`, target of the hero's "How it works" button): the **raw vs harmonized chart** (must keep), how harmonization works, validation results, data sources (NASA and non-NASA), limitations, SP vs NRT note, simulation and risk disclaimers. There is no separate methodology page.
 6. What you can do: calendar, compare, simulate
 7. Featured fires
 8. Who it's for
@@ -454,7 +448,7 @@ Accessibility: respect `prefers-reduced-motion` (simple fade instead), no rapid 
 
 #### Navigation: jump to sections
 
-- Each home section has an `id` (e.g. `problem`, `data-story`, `approach`, `featured`, `who`), and the nav links to them with `href="#id"`. Dashboard and Methodology are normal page links.
+- Each home section has an `id` (e.g. `problem`, `data-story`, `how-it-works`, `featured`, `who`), and the nav links to them with `href="#id"`. Dashboard is a normal page link.
 - Smooth scrolling only when motion is allowed:
   `@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }`
 - Sticky nav: add `scroll-margin-top` (≈ nav height) to `section[id]` so headings aren't hidden under it.
@@ -479,10 +473,6 @@ Safeguards:
 ### Dashboard
 
 As in section 7. Simulation is a mode within it, not a separate page.
-
-### Methodology
-
-How harmonization works, the raw vs harmonized chart, validation results, data sources, limitations, simulation and risk disclaimers.
 
 ## 11. Accessibility and honesty
 

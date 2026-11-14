@@ -1,0 +1,14 @@
+{
+  "se-australia": {
+    "name": "South-east Australia",
+    "bbox": [
+      140.0,
+      -39.5,
+      154.0,
+      -28.0
+    ],
+    "rows": 1875515,
+    "first": "2002-07-04",
+    "last": "2026-11-13"
+  }
+}

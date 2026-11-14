@@ -1,0 +1,135 @@
+.dash {
+  --side-width: 320px;
+  --slider-height: 56px;
+  --stats-height: 200px;
+
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--side-width);
+  grid-template-rows: auto minmax(0, 1fr) var(--slider-height) var(--stats-height);
+  grid-template-areas:
+    'top    top'
+    'map    side'
+    'slider side'
+    'stats  side';
+}
+
+.dash[data-side-open='false'] {
+  grid-template-columns: minmax(0, 1fr) 0;
+}
+
+.dash-top {
+  grid-area: top;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.dash-top .dash-icon-btn {
+  margin-left: auto;
+}
+
+.dash-map {
+  grid-area: map;
+  position: relative;
+  min-height: 0;
+  background: #0b0d10;
+}
+
+/* Calendar floats in the map's top-right corner. */
+.dash-calendar {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: min(360px, calc(100% - 24px));
+  height: 220px;
+  z-index: 10;
+}
+
+.dash-slider {
+  grid-area: slider;
+  border-top: 1px solid var(--border);
+}
+
+.dash-stats {
+  grid-area: stats;
+  border-top: 1px solid var(--border);
+  overflow: auto;
+}
+
+.dash-side {
+  grid-area: side;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  overflow: auto;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+}
+
+.dash-side[hidden] {
+  display: none;
+}
+
+/* Placeholder look for empty regions; remove as real components land. */
+.dash-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.dash-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.dash-icon-btn:hover {
+  border-color: var(--text-muted);
+}
+
+/* Phones: side panel moves below the stats, the page scrolls. */
+@media (max-width: 768px) {
+  .dash {
+    height: auto;
+    min-height: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 60vh var(--slider-height) auto auto;
+    grid-template-areas: 'top' 'map' 'slider' 'stats' 'side';
+  }
+
+  .dash[data-side-open='false'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dash-top {
+    flex-wrap: wrap;
+  }
+
+  .dash-stats {
+    min-height: var(--stats-height);
+  }
+
+  .dash-side {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+}

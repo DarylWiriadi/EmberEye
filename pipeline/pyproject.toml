@@ -1,0 +1,10 @@
+[project]
+name = "embereye-pipeline"
+version = "0.1.0"
+description = "Offline FIRMS MODIS + VIIRS harmonization pipeline for EmberEye"
+requires-python = ">=3.12"
+dependencies = [
+    "duckdb>=1.4",
+    "pyarrow>=20",
+    "boto3>=1.34",
+]
