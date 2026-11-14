@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { ArrowUp, LoaderCircle } from 'lucide-react';
 import type uPlot from 'uplot';
-import { useAppStore, useSliderWindow, useSteps } from '../../../store/useAppStore';
+import { useActiveBbox, useAppStore, useSliderWindow, useSteps } from '../../../store/useAppStore';
 import { useAreaStats, useCalendar, type CalendarPeriod, type WeatherMonth } from '../../../lib/api';
 import { formatWindow, windowPhrase } from '../../../lib/steps';
 import TimeSeriesChart from './TimeSeriesChart';
@@ -94,14 +94,14 @@ function Card({
 }
 
 export default function StatsPanel() {
-  const view = useAppStore((s) => s.view);
+  const { bbox, picked } = useActiveBbox();
+  const areaLabel = useAppStore((s) => s.area?.label);
   const range = useAppStore((s) => s.dateRange);
   const steps = useSteps();
   const win = useSliderWindow();
 
   const days = steps ? Math.round((steps.endTime - steps.startTime) / 86_400_000) + 1 : 0;
   const level = days <= DAY_LEVEL_MAX_DAYS ? 'day' : 'month';
-  const bbox = view?.bbox ?? null;
   const cal = useCalendar(bbox, range, level);
   const stats = useAreaStats(bbox, range);
   const periods = cal.data?.data ?? [];
@@ -200,7 +200,10 @@ export default function StatsPanel() {
   return (
     <div className="stats">
       <header className="stats-head">
-        <h2 className="stats-title">Current map view {windowPhrase(win)}</h2>
+        <h2 className="stats-title">
+          {picked ? 'Selected area' : 'Current map view'} {windowPhrase(win)}
+        </h2>
+        {picked && areaLabel && <p className="stats-area">{areaLabel}</p>}
         <p className="stats-sub">
           Fire activity is harmonized across MODIS and VIIRS; hotspots and intensity are observed detections;
           weather is the monthly average.

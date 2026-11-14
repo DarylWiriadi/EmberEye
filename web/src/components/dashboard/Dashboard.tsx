@@ -5,6 +5,7 @@ import { useHealth } from '../../lib/api';
 import { useAppStore } from '../../store/useAppStore';
 import MapView from './map/MapView';
 import DownloadMenu from './downloads/DownloadMenu';
+import AreaToolbar from './area/AreaToolbar';
 import StatsPanel from './stats/StatsPanel';
 import DateRangeInputs from './timeline/DateRangeInputs';
 import TimeSlider from './timeline/TimeSlider';
@@ -37,7 +38,7 @@ function DashboardShell() {
         <section className="dash-map" aria-label="Map">
           <MapView />
           <div className="dash-area-tools">
-            <div className="dash-slot">Area tools</div>
+            <AreaToolbar />
             <DownloadMenu />
           </div>
 

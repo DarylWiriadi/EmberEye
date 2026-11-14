@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { create } from 'zustand';
-import type { DateRange, MapViewState } from '../types';
+import type { Bbox, DateRange, MapViewState, SelectedArea } from '../types';
 import { stepOf, stepsFor, stepWindow } from '../lib/steps';
 
 interface AppState {
@@ -24,6 +24,12 @@ interface AppState {
   pause: () => void;
   /** New area or date range: the full window may load again. */
   unfreeze: () => void;
+  /** The picked area, or null to use the current map view. */
+  area: SelectedArea | null;
+  /** 'rectangle' while the user is drawing one on the map. */
+  areaTool: 'none' | 'rectangle';
+  setArea: (area: SelectedArea | null) => void;
+  setAreaTool: (tool: 'none' | 'rectangle') => void;
 }
 
 export const useAppStore = create<AppState>()((set, get) => ({
@@ -59,7 +65,18 @@ export const useAppStore = create<AppState>()((set, get) => ({
     get().setSliderPos(Math.round(get().sliderPos));
   },
   unfreeze: () => set({ frozen: false }),
+  area: null,
+  areaTool: 'none',
+  setArea: (area) => set({ area, areaTool: 'none' }),
+  setAreaTool: (areaTool) => set({ areaTool }),
 }));
+
+/** The area stats and downloads use: the picked area, else the map view. */
+export function useActiveBbox(): { bbox: Bbox | null; picked: boolean } {
+  const area = useAppStore((s) => s.area);
+  const view = useAppStore((s) => s.view);
+  return area ? { bbox: area.bbox, picked: true } : { bbox: view?.bbox ?? null, picked: false };
+}
 
 export function useSteps() {
   const range = useAppStore((s) => s.dateRange);

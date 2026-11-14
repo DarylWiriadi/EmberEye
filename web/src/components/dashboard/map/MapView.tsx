@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Map, { AttributionControl, NavigationControl, useControl, type MapEvent } from 'react-map-gl/maplibre';
+import Map, {
+  AttributionControl,
+  NavigationControl,
+  useControl,
+  type MapEvent,
+  type MapLayerMouseEvent,
+  type MapLayerTouchEvent,
+  type MapRef,
+} from 'react-map-gl/maplibre';
+import { describeBbox } from '../area/AreaToolbar';
 import { MapboxOverlay, type MapboxOverlayProps } from '@deck.gl/mapbox';
 import { PolygonLayer, ScatterplotLayer } from '@deck.gl/layers';
 import { cellsToMultiPolygon, latLngToCell } from 'h3-js';
@@ -338,8 +347,71 @@ export default function MapView() {
     getLineWidth: 1.5,
   });
 
+  // Area selection: drag a rectangle while the tool is on; the picked area is outlined.
+  const mapRef = useRef<MapRef>(null);
+  const selectedArea = useAppStore((s) => s.area);
+  const areaTool = useAppStore((s) => s.areaTool);
+  const setArea = useAppStore((s) => s.setArea);
+  const drawStart = useRef<{ lng: number; lat: number; x: number; y: number } | null>(null);
+  const [draft, setDraft] = useState<Bbox | null>(null);
+  const drawing = areaTool === 'rectangle';
+  useEffect(() => {
+    if (!drawing) {
+      drawStart.current = null;
+      setDraft(null);
+    }
+  }, [drawing]);
+  const boxFrom = (a: { lng: number; lat: number }, b: { lng: number; lat: number }): Bbox => [
+    Math.max(-180, Math.min(a.lng, b.lng)),
+    Math.max(-85, Math.min(a.lat, b.lat)),
+    Math.min(180, Math.max(a.lng, b.lng)),
+    Math.min(85, Math.max(a.lat, b.lat)),
+  ];
+  const onDrawStart = (e: MapLayerMouseEvent | MapLayerTouchEvent) => {
+    if (!drawing) return;
+    drawStart.current = { lng: e.lngLat.lng, lat: e.lngLat.lat, x: e.point.x, y: e.point.y };
+  };
+  const onDrawMove = (e: MapLayerMouseEvent | MapLayerTouchEvent) => {
+    if (drawing && drawStart.current) setDraft(boxFrom(drawStart.current, e.lngLat));
+  };
+  const onDrawEnd = (e: MapLayerMouseEvent | MapLayerTouchEvent) => {
+    const start = drawStart.current;
+    if (!drawing || !start) return;
+    drawStart.current = null;
+    setDraft(null);
+    // A click, not a drag: keep the tool on.
+    if (Math.hypot(e.point.x - start.x, e.point.y - start.y) < 8) return;
+    const bbox = boxFrom(start, e.lngLat);
+    setArea({ bbox, source: 'rectangle', label: describeBbox(bbox) });
+  };
+
+  // Typed-in coordinates: bring the area into view.
+  useEffect(() => {
+    if (selectedArea?.source !== 'coordinates') return;
+    const [w, s, e, n] = selectedArea.bbox;
+    const instant = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    mapRef.current?.fitBounds([[w, s], [e, n]], { padding: 80, duration: instant ? 0 : 900 });
+  }, [selectedArea]);
+
+  const shownArea = draft ?? selectedArea?.bbox ?? null;
+  const areaLayer = new PolygonLayer<{ polygon: number[][] }>({
+    id: 'selected-area',
+    data: shownArea
+      ? [{ polygon: [[shownArea[0], shownArea[1]], [shownArea[2], shownArea[1]], [shownArea[2], shownArea[3]], [shownArea[0], shownArea[3]]] }]
+      : [],
+    getPolygon: (o) => o.polygon,
+    filled: true,
+    getFillColor: [255, 255, 255, draft ? 30 : 12],
+    stroked: true,
+    getLineColor: [255, 255, 255, 230],
+    lineWidthUnits: 'pixels',
+    getLineWidth: 2,
+    updateTriggers: { getFillColor: [!!draft] },
+  });
+
   const layers = [
     outlineLayer,
+    areaLayer,
     hotspotLayer('hotspots-range', shownPoints, 1 - mix),
     hotspotLayer('hotspots-window', winPoints, mix),
   ];
@@ -364,6 +436,15 @@ export default function MapView() {
   return (
     <div className="map-wrap">
       <Map
+        ref={mapRef}
+        dragPan={!drawing}
+        cursor={drawing ? 'crosshair' : undefined}
+        onMouseDown={onDrawStart}
+        onMouseMove={onDrawMove}
+        onMouseUp={onDrawEnd}
+        onTouchStart={onDrawStart}
+        onTouchMove={onDrawMove}
+        onTouchEnd={onDrawEnd}
         initialViewState={{ longitude: 20, latitude: 10, zoom: INITIAL_ZOOM }}
         mapStyle={BASE_STYLE}
         minZoom={1}

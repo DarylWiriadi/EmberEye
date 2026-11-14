@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Download, LoaderCircle } from 'lucide-react';
-import { useAppStore } from '../../../store/useAppStore';
+import { useActiveBbox, useAppStore } from '../../../store/useAppStore';
 import { bboxParam, downloadFile, startDownload, useExportEstimate, type ExportEstimate } from '../../../lib/api';
 import { formatWindow } from '../../../lib/steps';
 
@@ -55,7 +55,7 @@ function describe(e: ExportEstimate) {
 }
 
 export default function DownloadMenu() {
-  const view = useAppStore((s) => s.view);
+  const { bbox, picked } = useActiveBbox();
   const range = useAppStore((s) => s.dateRange);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<OptionId | null>(null);
@@ -78,10 +78,10 @@ export default function DownloadMenu() {
     };
   }, [open]);
 
-  useEffect(() => setError(null), [view, range]);
+  useEffect(() => setError(null), [bbox, range]);
 
-  const ready = !!view && !!range;
-  const estimate = useExportEstimate(view?.bbox ?? null, range, open);
+  const ready = !!bbox && !!range;
+  const estimate = useExportEstimate(bbox, range, open);
   const months = range ? monthsTouched(range.start, range.end) : 0;
   // ~88 bytes per month row plus the header line (measured).
   const summarySize = `${months.toLocaleString()} month${months === 1 ? '' : 's'} · ~${formatSize(120 + 88 * months)}`;
@@ -91,7 +91,7 @@ export default function DownloadMenu() {
   const lastStart = useRef(0);
 
   const save = async (option: (typeof OPTIONS)[number]) => {
-    if (!view || !range || locked.current) return;
+    if (!bbox || !range || locked.current) return;
     if (Date.now() - lastStart.current < MIN_GAP_MS) return;
     locked.current = true;
     lastStart.current = Date.now();
@@ -99,7 +99,7 @@ export default function DownloadMenu() {
     setError(null);
     const clicked = Date.now();
     try {
-      const params = { bbox: bboxParam(view.bbox), start: range.start, end: range.end };
+      const params = { bbox: bboxParam(bbox), start: range.start, end: range.end };
       await (option.streamed ? startDownload(option.path, params) : downloadFile(option.path, params));
     } catch (e) {
       setError((e as Error).message);
@@ -127,7 +127,7 @@ export default function DownloadMenu() {
       {open && ready && (
         <div id="download-panel" className="download-panel">
           <p className="download-scope">
-            Current map view · {formatWindow(range)}
+            {picked ? 'Selected area' : 'Current map view'} · {formatWindow(range)}
           </p>
           {OPTIONS.map((o) => (
             <button
