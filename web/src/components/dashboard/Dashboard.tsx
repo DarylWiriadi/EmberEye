@@ -1,10 +1,16 @@
 import { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Flame, Gauge } from 'lucide-react';
 import { useHealth } from '../../lib/api';
+import { featuredFire } from '../../lib/featuredFires';
+import { openFeaturedFire } from '../../lib/openFeaturedFire';
+import FeaturedList from './featured/FeaturedList';
 import { useAppStore } from '../../store/useAppStore';
 import MapView from './map/MapView';
 import DownloadMenu from './downloads/DownloadMenu';
+import AreaToolbar from './area/AreaToolbar';
+import CalendarWidget from './calendar/CalendarWidget';
+import StatsPanel from './stats/StatsPanel';
 import DateRangeInputs from './timeline/DateRangeInputs';
 import TimeSlider from './timeline/TimeSlider';
 import './Dashboard.css';
@@ -19,28 +25,44 @@ function addDays(iso: string, days: number) {
   return d.toISOString().slice(0, 10);
 }
 
+type SideTab = 'calendar' | 'risk' | 'featured';
+const SIDE_TABS = [
+  { id: 'calendar', label: 'Calendar', Icon: CalendarDays },
+  { id: 'risk', label: 'Risk', Icon: Gauge },
+  { id: 'featured', label: 'Featured', Icon: Flame },
+] as const;
+
 function DashboardShell() {
-  const [sideOpen, setSideOpen] = useState(false);
+  // Open by default on wide screens (the calendar lives there); closed on phones.
+  const [sideOpen, setSideOpen] = useState(() => window.matchMedia('(min-width: 48rem)').matches);
+  const [sideTab, setSideTab] = useState<SideTab>('calendar');
   const health = useHealth();
   const range = useAppStore((s) => s.dateRange);
   const setRange = useAppStore((s) => s.setDateRange);
   const coverage = health.data?.coverage;
 
   useEffect(() => {
-    if (coverage && !range) setRange({ start: addDays(coverage.last, -29), end: coverage.last });
+    if (!coverage || range) return;
+    // /dashboard?fire=<id> opens a featured fire: its area and dates.
+    const fire = featuredFire(new URLSearchParams(window.location.search).get('fire'));
+    if (fire) {
+      openFeaturedFire(fire);
+    } else {
+      setRange({ start: addDays(coverage.last, -29), end: coverage.last });
+    }
   }, [coverage, range, setRange]);
 
   return (
     <div className="dash">
       <div className="dash-screen">
-        <section className="dash-map" aria-label="Map">
+        <section className="dash-map" aria-label="Map" data-side-open={sideOpen || undefined}>
           <MapView />
           <div className="dash-area-tools">
-            <div className="dash-slot">Area tools</div>
+            <AreaToolbar />
             <DownloadMenu />
           </div>
 
-          <aside id="dash-side" className="dash-side" data-open={sideOpen} aria-label="Risk and featured fires">
+          <aside id="dash-side" className="dash-side" data-open={sideOpen} aria-label="Calendar, risk and featured fires">
             <button
               type="button"
               className="dash-side-tab"
@@ -52,8 +74,33 @@ function DashboardShell() {
               {sideOpen ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
             </button>
             <div id="dash-side-panel" className="dash-side-panel" inert={!sideOpen}>
-              <div className="dash-slot">Risk outlook</div>
-              <div className="dash-slot">Featured fires</div>
+              <div className="side-tabs" role="tablist" aria-label="Side panel">
+                {SIDE_TABS.map(({ id, label, Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    id={`side-tab-${id}`}
+                    aria-selected={sideTab === id}
+                    aria-controls={`side-pane-${id}`}
+                    className="side-tab"
+                    onClick={() => setSideTab(id)}
+                  >
+                    <Icon size={15} aria-hidden="true" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div
+                className="side-pane"
+                role="tabpanel"
+                id={`side-pane-${sideTab}`}
+                aria-labelledby={`side-tab-${sideTab}`}
+              >
+                {sideTab === 'calendar' && <CalendarWidget />}
+                {sideTab === 'risk' && <div className="dash-slot">Risk outlook (coming soon)</div>}
+                {sideTab === 'featured' && <FeaturedList />}
+              </div>
             </div>
           </aside>
         </section>
@@ -69,7 +116,7 @@ function DashboardShell() {
       </div>
 
       <section className="dash-stats" aria-label="Statistics">
-        <div className="dash-slot">Stats</div>
+        <StatsPanel />
       </section>
     </div>
   );

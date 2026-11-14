@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { create } from 'zustand';
-import type { DateRange, MapViewState } from '../types';
+import type { Bbox, DateRange, MapViewState, SelectedArea } from '../types';
 import { stepOf, stepsFor, stepWindow } from '../lib/steps';
 
 interface AppState {
@@ -24,6 +24,17 @@ interface AppState {
   pause: () => void;
   /** New area or date range: the full window may load again. */
   unfreeze: () => void;
+  /** The picked area, or null to use the current map view. */
+  area: SelectedArea | null;
+  /** 'rectangle' while the user is drawing one on the map. */
+  areaTool: 'none' | 'rectangle';
+  setArea: (area: SelectedArea | null) => void;
+  /** The map is flying to a picked area: the old view's data isn't fetched meanwhile. */
+  flying: boolean;
+  setFlying: (flying: boolean) => void;
+  setAreaTool: (tool: 'none' | 'rectangle') => void;
+  /** Moves the slider to a day; outside the date range, the range becomes that day's month. */
+  jumpToDate: (iso: string, bounds?: DateRange) => void;
 }
 
 export const useAppStore = create<AppState>()((set, get) => ({
@@ -59,7 +70,33 @@ export const useAppStore = create<AppState>()((set, get) => ({
     get().setSliderPos(Math.round(get().sliderPos));
   },
   unfreeze: () => set({ frozen: false }),
+  area: null,
+  areaTool: 'none',
+  setArea: (area) => set({ area, areaTool: 'none', flying: !!area && area.source !== 'rectangle' }),
+  flying: false,
+  setFlying: (flying) => set({ flying }),
+  setAreaTool: (areaTool) => set({ areaTool }),
+  jumpToDate: (iso, bounds) => {
+    let range = get().dateRange;
+    if (!range || iso < range.start || iso > range.end) {
+      const start = `${iso.slice(0, 7)}-01`;
+      const last = new Date(`${start}T00:00:00Z`);
+      last.setUTCMonth(last.getUTCMonth() + 1, 0);
+      let end = last.toISOString().slice(0, 10);
+      if (bounds && end > bounds.end) end = bounds.end;
+      range = { start: bounds && start < bounds.start ? bounds.start : start, end };
+      get().setDateRange(range);
+    }
+    get().scrubTo(stepOf(stepsFor(range), iso));
+  },
 }));
+
+/** The area stats and downloads use: the picked area, else the map view. */
+export function useActiveBbox(): { bbox: Bbox | null; picked: boolean } {
+  const area = useAppStore((s) => s.area);
+  const view = useAppStore((s) => s.view);
+  return area ? { bbox: area.bbox, picked: true } : { bbox: view?.bbox ?? null, picked: false };
+}
 
 export function useSteps() {
   const range = useAppStore((s) => s.dateRange);

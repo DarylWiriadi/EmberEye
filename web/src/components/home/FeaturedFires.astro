@@ -2,28 +2,32 @@
 import SectionHeader from './SectionHeader.astro';
 import { pages } from '../../lib/site';
 
-// Placeholder list. Descriptions are drafts; check every claim before launch (issue #5).
-// Links will open each fire's preset in the dashboard once presets exist.
+// Descriptions are drafts; check every claim before launch (issue #5).
+// Each card opens the fire in the dashboard (ids match lib/featuredFires.ts).
 const fires = [
   {
+    id: 'black-summer',
     name: 'Black Summer',
     place: 'South-east Australia',
     period: '2019–20',
     text: 'Months of fire across the forests of New South Wales and Victoria.',
   },
   {
+    id: 'amazon-2019',
     name: 'Amazon fires',
     place: 'Brazil',
     period: '2019',
     text: 'A surge of fires across the Amazon, many linked to land clearing.',
   },
   {
+    id: 'california-2020',
     name: 'California fire season',
     place: 'United States',
     period: '2020',
     text: 'One of the most severe seasons in the state’s history.',
   },
   {
+    id: 'canada-2023',
     name: 'Canada fire season',
     place: 'Canada',
     period: '2023',
@@ -50,7 +54,7 @@ const fires = [
               <span>{fire.period}</span>
             </p>
             <h3>
-              <a class="card-link" href={pages.dashboard}>
+              <a class="card-link" href={`${pages.dashboard}?fire=${fire.id}`}>
                 {fire.name}
               </a>
             </h3>

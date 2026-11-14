@@ -14,7 +14,8 @@ fire-free periods counted as zero:
   * day level: the same day of year +-3 days in every baseline year,
     skipping data-gap days
 """
-from datetime import date
+import statistics
+from datetime import date, timedelta
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -104,59 +105,52 @@ def calendar(
             })
         notes = []
     else:
-        rows = cur.execute(f"""
-            WITH d3 AS (   -- daily series on the res 3 grid around the area
-                SELECT date, sum(fire_days) AS f, sum(detections) AS d, sum(frp_sum) AS frp
-                FROM daily WHERE cell3 IN (SELECT DISTINCT cell3 FROM sel) GROUP BY date
-            ),
-            m5 AS (        -- the area's own monthly totals
-                SELECT month, sum(fire_days) AS f, sum(detections) AS d, sum(frp_sum) AS frp
-                FROM monthly WHERE cell5 IN (SELECT cell5 FROM sel) GROUP BY month
-            ),
-            k AS (         -- per-month scale so the days add up to the area's month
-                SELECT m3.month,
-                       coalesce(m5.f, 0) / nullif(m3.f, 0) AS kf,
-                       coalesce(m5.d, 0) / nullif(m3.d, 0) AS kd,
-                       coalesce(m5.frp, 0) / nullif(m3.frp, 0) AS kp
-                FROM (SELECT date_trunc('month', date)::DATE AS month,
-                             sum(f) AS f, sum(d) AS d, sum(frp) AS frp
-                      FROM d3 GROUP BY 1) m3
-                LEFT JOIN m5 USING (month)
-            ),
-            ds AS (
-                SELECT d3.date, d3.f * coalesce(k.kf, 0) AS f, d3.d * coalesce(k.kd, 0) AS d,
-                       d3.frp * coalesce(k.kp, 0) AS frp
-                FROM d3 JOIN k ON k.month = date_trunc('month', d3.date)
-            ),
-            b AS (         -- baseline days, zero-filled, data gaps skipped
-                SELECT days.date, coalesce(ds.f, 0) AS f
-                FROM days LEFT JOIN ds USING (date)
-                WHERE year(days.date) BETWEEN {lo} AND {hi} AND NOT days.gap
-            ),
-            cal AS (
-                SELECT unnest(generate_series(?::DATE, ?::DATE, INTERVAL 1 DAY))::DATE AS date
-            ),
-            base AS (
-                SELECT cal.date, median(b.f) AS med, avg(b.f) AS mean
-                FROM cal JOIN b
-                  ON least(abs(dayofyear(b.date) - dayofyear(cal.date)),
-                           366 - abs(dayofyear(b.date) - dayofyear(cal.date))) <= {DAY_WINDOW}
-                GROUP BY cal.date
-            )
-            SELECT strftime(cal.date, '%Y-%m-%d'), coalesce(ds.f, 0), coalesce(ds.d, 0),
-                   coalesce(ds.frp, 0), coalesce(base.med, 0), coalesce(base.mean, 0),
-                   days.sensor, days.gap
-            FROM cal
-            LEFT JOIN ds USING (date)
-            LEFT JOIN base USING (date)
-            LEFT JOIN days USING (date)
-            ORDER BY cal.date
-        """, [start, end]).fetchall()
+        # Three small queries and the arithmetic in Python. As one SQL query this
+        # made DuckDB 2.0 spill >15 GB of temp files, or crash, for large areas.
+        d3 = {r[0]: r[1:] for r in cur.execute("""
+            SELECT date, sum(fire_days), sum(detections), sum(frp_sum)
+            FROM daily WHERE cell3 IN (SELECT DISTINCT cell3 FROM sel) GROUP BY date
+        """).fetchall()}   # daily pattern on the res 3 grid around the area
+        m5 = {r[0]: r[1:] for r in cur.execute("""
+            SELECT month, sum(fire_days), sum(detections), sum(frp_sum)
+            FROM monthly WHERE cell5 IN (SELECT cell5 FROM sel) GROUP BY month
+        """).fetchall()}   # the area's own monthly totals
+        days = cur.execute("SELECT date, sensor, gap FROM days ORDER BY date").fetchall()
+
+        # Scale each month's days so they add up to the area's own monthly total.
+        m3: dict = {}
+        for d, vals in d3.items():
+            tot = m3.setdefault(d.replace(day=1), [0.0, 0.0, 0.0])
+            for i, v in enumerate(vals):
+                tot[i] += float(v or 0)
+        scale = {m: [float(m5.get(m, (0, 0, 0))[i] or 0) / tot[i] if tot[i] else 0.0
+                     for i in range(3)] for m, tot in m3.items()}
+        ds = {d: [float(v or 0) * scale[d.replace(day=1)][i] for i, v in enumerate(vals)]
+              for d, vals in d3.items()}
+
+        # Baseline: the same day of year +-DAY_WINDOW in every baseline year,
+        # zero-filled, data-gap days skipped.
+        by_doy: dict[int, list[float]] = {}
+        for d, _, gap in days:
+            if lo <= d.year <= hi and not gap:
+                by_doy.setdefault(d.timetuple().tm_yday, []).append(ds.get(d, (0.0,))[0])
+
+        def baseline(d):
+            doy = d.timetuple().tm_yday
+            vals = [v for o, vs in by_doy.items()
+                    if min(abs(o - doy), 366 - abs(o - doy)) <= DAY_WINDOW for v in vs]
+            return (statistics.median(vals), statistics.fmean(vals)) if vals else (0.0, 0.0)
+
+        info = {d: (sensor, gap) for d, sensor, gap in days}
         data = []
-        for period, f, d, frp, med, mean, sensor, gap in rows:
+        for n in range((end - start).days + 1):
+            d = start + timedelta(days=n)
+            f, det, frp = ds.get(d, (0.0, 0.0, 0.0))
+            med, mean = baseline(d)
+            sensor, gap = info.get(d, (None, False))
             ratio, pct = _anomaly(f, med)
             data.append({
-                "period": period, "fire_days": _round(f), "detections": _round(d, 1),
+                "period": d.isoformat(), "fire_days": _round(f), "detections": _round(det, 1),
                 "frp_mw": _round(frp, 1), "median": _round(med), "mean": _round(mean),
                 "ratio_to_median": ratio, "anomaly_pct": pct,
                 "gap": bool(gap), "sensor": sensor,

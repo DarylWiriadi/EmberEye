@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import type { Bbox, DateRange } from '../types';
 
 const BASE = import.meta.env.PUBLIC_API_URL ?? '';
@@ -56,7 +56,11 @@ export async function downloadFile(path: string, params: Params) {
   const res = await fetch(apiUrl(path, params));
   if (!res.ok) throw await failure(res);
   const blob = await res.blob();
-  const name = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ?? 'embereye.csv';
+  saveBlob(blob, /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ?? 'embereye.csv');
+}
+
+/** Saves a file made in the browser (chart images, chart data). */
+export function saveBlob(blob: Blob, name: string) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = name;
@@ -64,6 +68,16 @@ export async function downloadFile(path: string, params: Params) {
   a.click();
   a.remove();
   window.setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/** CSV text from a header and rows (quotes values that need it). */
+export function toCsv(header: string[], rows: (string | number | null | undefined)[][]) {
+  const cell = (v: string | number | null | undefined) => {
+    if (v == null) return '';
+    const s = String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  return [header, ...rows].map((r) => r.map(cell).join(',')).join('\n') + '\n';
 }
 
 export const bboxParam = (b: Bbox) => b.map((v) => v.toFixed(2)).join(',');
@@ -167,6 +181,80 @@ export function useHotspots(
     // The signal cancels the request once it's no longer wanted (dates or view changed).
     queryFn: ({ signal }) => getJson<HotspotsResponse>('/hotspots', { bbox: b, limit, ...range }, signal),
     enabled: enabled && !!bbox && !!range,
+    staleTime: 10 * 60_000,
+  });
+}
+
+/** Starts loading the dots for a view the map is about to show (e.g. while it
+ *  flies there), into the same cache useHotspots reads. */
+export function prefetchHotspots(qc: QueryClient, bbox: Bbox, range: DateRange, limit = 50_000) {
+  const b = bboxParam(bbox);
+  return qc.prefetchQuery({
+    queryKey: ['hotspots', b, range.start, range.end, limit],
+    queryFn: ({ signal }) => getJson<HotspotsResponse>('/hotspots', { bbox: b, limit, ...range }, signal),
+    staleTime: 10 * 60_000,
+  });
+}
+
+export interface CalendarPeriod {
+  /** YYYY-MM-DD (day level) or YYYY-MM (month level). */
+  period: string;
+  /** Harmonized fire cell-days (VIIRS S-NPP equivalent). */
+  fire_days: number;
+  detections: number;
+  frp_mw: number;
+  median: number | null;
+  mean: number | null;
+  ratio_to_median: number | null;
+  anomaly_pct: number | null;
+}
+
+export interface CalendarResponse {
+  level: 'day' | 'month';
+  start: string;
+  end: string;
+  notes?: string[];
+  data: CalendarPeriod[];
+}
+
+export function useCalendar(bbox: Bbox | null, range: DateRange | null, level: 'day' | 'month') {
+  const b = bbox ? bboxParam(bbox) : '';
+  return useQuery({
+    queryKey: ['calendar', b, range?.start, range?.end, level],
+    queryFn: ({ signal }) => getJson<CalendarResponse>('/calendar', { bbox: b, level, ...range }, signal),
+    enabled: !!bbox && !!range,
+    placeholderData: keepPreviousData,
+    staleTime: 10 * 60_000,
+  });
+}
+
+export interface WeatherMonth {
+  month: string;
+  t2m: number | null;
+  rh: number | null;
+  wind_ms: number | null;
+  wind_from_deg: number | null;
+  soil: number | null;
+  fwi: number | null;
+}
+
+export interface StatsResponse {
+  start: string;
+  end: string;
+  area: { cells_res5: number; centre: [number, number] | null };
+  weather: WeatherMonth[];
+  landcover: { shares: Record<string, number | null>; basis: string } | null;
+  /** The latest month with MERRA-2 weather, and with FWI (up to a year before the range end). */
+  latest: { weather: WeatherMonth | null; fwi: WeatherMonth | null };
+}
+
+export function useAreaStats(bbox: Bbox | null, range: DateRange | null) {
+  const b = bbox ? bboxParam(bbox) : '';
+  return useQuery({
+    queryKey: ['stats', b, range?.start, range?.end],
+    queryFn: ({ signal }) => getJson<StatsResponse>('/stats', { bbox: b, ...range }, signal),
+    enabled: !!bbox && !!range,
+    placeholderData: keepPreviousData,
     staleTime: 10 * 60_000,
   });
 }

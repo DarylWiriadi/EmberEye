@@ -1,18 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Map, { AttributionControl, NavigationControl, useControl, type MapEvent } from 'react-map-gl/maplibre';
+import Map, {
+  AttributionControl,
+  NavigationControl,
+  useControl,
+  type MapEvent,
+  type MapLayerMouseEvent,
+  type MapLayerTouchEvent,
+  type MapRef,
+} from 'react-map-gl/maplibre';
+import { describeBbox } from '../area/AreaToolbar';
 import { MapboxOverlay, type MapboxOverlayProps } from '@deck.gl/mapbox';
 import { PolygonLayer, ScatterplotLayer } from '@deck.gl/layers';
 import { cellsToMultiPolygon, latLngToCell } from 'h3-js';
 import { DataFilterExtension } from '@deck.gl/extensions';
 import type { PickingInfo } from '@deck.gl/core';
-import { setWorkerUrl, type Map as MapLibreMap, type StyleSpecification } from 'maplibre-gl';
+import { LngLat, setWorkerUrl, type Map as MapLibreMap, type StyleSpecification } from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { useAppStore, useSliderWindow, useSteps } from '../../../store/useAppStore';
-import { addDays, DAY_MS, stepOf, windowPhrase } from '../../../lib/steps';
+import { addDays, DAY_MS, stepOf, stepsFor, stepWindow, windowPhrase } from '../../../lib/steps';
 import { useQueryClient } from '@tanstack/react-query';
-import { fetchBbox, useBurned, useHotspots, worldHotspotsKey, type HotspotsResponse } from '../../../lib/api';
+import { fetchBbox, prefetchHotspots, useBurned, useHotspots, worldHotspotsKey, type HotspotsResponse } from '../../../lib/api';
 import {
   BASEMAP_ATTRIBUTION,
   BASEMAP_MAX_ZOOM,
@@ -24,6 +33,7 @@ import {
 import { logScale, viridis } from '../../../lib/colors';
 import type { Bbox } from '../../../types';
 import MapStatus from './MapStatus';
+import { prefetchTiles, viaStore } from '../../../lib/tileCache';
 
 const INITIAL_ZOOM = 1.6;
 // Outlines: merged H3 res 7 cells (~5 km2) with a detection in the last 30 days.
@@ -44,14 +54,14 @@ const BASE_STYLE: StyleSpecification = {
   sources: {
     basemap: {
       type: 'raster',
-      tiles: BASEMAP_TILES,
+      tiles: viaStore(BASEMAP_TILES),
       tileSize: 256,
       maxzoom: BASEMAP_MAX_ZOOM,
       attribution: BASEMAP_ATTRIBUTION,
     },
     labels: {
       type: 'raster',
-      tiles: LABEL_TILES,
+      tiles: viaStore(LABEL_TILES),
       tileSize: 256,
       maxzoom: LABEL_MAX_ZOOM,
       attribution: LABEL_ATTRIBUTION,
@@ -82,9 +92,14 @@ function DeckOverlay(props: MapboxOverlayProps) {
 
 function boundsOf(map: MapLibreMap): Bbox {
   const b = map.getBounds();
+  return tidyBounds(b.getWest(), b.getSouth(), b.getEast(), b.getNorth());
+}
+
+/** Wraps longitudes into -180..180 (whole world if wider) and clamps latitudes. */
+function tidyBounds(west: number, south: number, east: number, north: number): Bbox {
   const clampLat = (v: number) => Math.max(-85, Math.min(85, v));
-  let w = b.getWest();
-  let e = b.getEast();
+  let w = west;
+  let e = east;
   if (e - w >= 360) {
     w = -180;
     e = 180;
@@ -93,7 +108,19 @@ function boundsOf(map: MapLibreMap): Bbox {
     w = wrap(w);
     e = wrap(e);
   }
-  return [w, clampLat(b.getSouth()), e, clampLat(b.getNorth())];
+  return [w, clampLat(south), e, clampLat(north)];
+}
+
+/** What the map will show at a centre and zoom (Web Mercator, no rotation or tilt),
+ *  so its data can load before the map gets there. */
+function boundsAt(map: MapLibreMap, lng: number, lat: number, zoom: number): Bbox {
+  const { clientWidth: width, clientHeight: height } = map.getContainer();
+  const size = 512 * 2 ** zoom;
+  const x = ((lng + 180) / 360) * size;
+  const y = ((1 - Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) / Math.PI) / 2) * size;
+  const lngAt = (px: number) => (px / size) * 360 - 180;
+  const latAt = (py: number) => (Math.atan(Math.sinh(Math.PI - (2 * Math.PI * py) / size)) * 180) / Math.PI;
+  return tidyBounds(lngAt(x - width / 2), latAt(y + height / 2), lngAt(x + width / 2), latAt(y - height / 2));
 }
 
 /** A fixed pseudo-random number in [0, 1) per detection, for even thinning. */
@@ -146,7 +173,11 @@ export default function MapView() {
   const winKey = win ? `${win.start}/${win.end}` : '';
 
   const area = useMemo(() => (view ? fetchBbox(view.bbox, view.zoom) : null), [view]);
-  const rangeQuery = useHotspots(area, range, true);
+  // While flying to a picked area, the old view's dots aren't fetched (the
+  // destination's are, see the fly-to effect below).
+  const flying = useAppStore((s) => s.flying);
+  const setFlying = useAppStore((s) => s.setFlying);
+  const rangeQuery = useHotspots(area, range, !flying);
 
   // The range is fetched once. If it came back sampled (zoomed out), the slider's
   // window is fetched on its own once the slider settles: never during playback,
@@ -170,7 +201,7 @@ export default function MapView() {
   const rangeFresh = !!rangeQuery.data && !rangeQuery.isPlaceholderData;
   const likelySampled = rangeFresh ? rangeQuery.data!.truncated : true;
   const detailed = zoom >= DETAIL_MIN_ZOOM;
-  const useWinQuery = detailed && likelySampled && !playing && !frozen && isSettled;
+  const useWinQuery = detailed && likelySampled && !playing && !frozen && isSettled && !flying;
   const winQuery = useHotspots(area, settled ? { start: settled.start, end: settled.end } : null, useWinQuery, {
     limit: STEP_DOT_CAP,
     keepAnyPrevious: false,
@@ -338,8 +369,122 @@ export default function MapView() {
     getLineWidth: 1.5,
   });
 
+  // Area selection: drag a rectangle while the tool is on; the picked area is outlined.
+  const mapRef = useRef<MapRef>(null);
+
+  // Browser zoom (Ctrl/Cmd +/-) changes the device pixel ratio; zoom the map the
+  // other way so it keeps showing the same part of the world.
+  useEffect(() => {
+    let dpr = window.devicePixelRatio;
+    let query: MediaQueryList;
+    const onChange = () => {
+      const next = window.devicePixelRatio;
+      const map = mapRef.current;
+      if (map && next !== dpr) map.setZoom(map.getZoom() - Math.log2(next / dpr));
+      dpr = next;
+      watch();
+    };
+    const watch = () => {
+      query?.removeEventListener('change', onChange);
+      query = window.matchMedia(`(resolution: ${dpr}dppx)`);
+      query.addEventListener('change', onChange);
+    };
+    watch();
+    return () => query.removeEventListener('change', onChange);
+  }, []);
+  const selectedArea = useAppStore((s) => s.area);
+  const areaTool = useAppStore((s) => s.areaTool);
+  const setArea = useAppStore((s) => s.setArea);
+  const drawStart = useRef<{ lng: number; lat: number; x: number; y: number } | null>(null);
+  const [draft, setDraft] = useState<Bbox | null>(null);
+  const drawing = areaTool === 'rectangle';
+  useEffect(() => {
+    if (!drawing) {
+      drawStart.current = null;
+      setDraft(null);
+    }
+  }, [drawing]);
+  const boxFrom = (a: { lng: number; lat: number }, b: { lng: number; lat: number }): Bbox => [
+    Math.max(-180, Math.min(a.lng, b.lng)),
+    Math.max(-85, Math.min(a.lat, b.lat)),
+    Math.min(180, Math.max(a.lng, b.lng)),
+    Math.min(85, Math.max(a.lat, b.lat)),
+  ];
+  const onDrawStart = (e: MapLayerMouseEvent | MapLayerTouchEvent) => {
+    if (!drawing) return;
+    drawStart.current = { lng: e.lngLat.lng, lat: e.lngLat.lat, x: e.point.x, y: e.point.y };
+  };
+  const onDrawMove = (e: MapLayerMouseEvent | MapLayerTouchEvent) => {
+    if (drawing && drawStart.current) setDraft(boxFrom(drawStart.current, e.lngLat));
+  };
+  const onDrawEnd = (e: MapLayerMouseEvent | MapLayerTouchEvent) => {
+    const start = drawStart.current;
+    if (!drawing || !start) return;
+    drawStart.current = null;
+    setDraft(null);
+    // A click, not a drag: keep the tool on.
+    if (Math.hypot(e.point.x - start.x, e.point.y - start.y) < 8) return;
+    const bbox = boxFrom(start, e.lngLat);
+    setArea({ bbox, source: 'rectangle', label: describeBbox(bbox) });
+  };
+
+  // Typed-in coordinates and featured fires: bring the area into view. The dots for
+  // where the map will land start loading first, so they're there on arrival.
+  useEffect(() => {
+    const map = mapRef.current?.getMap();
+    if (!selectedArea || selectedArea.source === 'rectangle') return;
+    if (!map) {
+      setFlying(false);
+      return;
+    }
+    const [w, s, e, n] = selectedArea.bbox;
+    const fit = { padding: 80 };
+    const camera = map.cameraForBounds([[w, s], [e, n]], fit);
+    const { dateRange, sliderStep } = useAppStore.getState();
+    if (camera?.center && camera.zoom != null && dateRange) {
+      const c = LngLat.convert(camera.center);
+      const area = fetchBbox(boundsAt(map, c.lng, c.lat, camera.zoom), camera.zoom);
+      // The map imagery and labels where it will land, and the dots.
+      const view = boundsAt(map, c.lng, c.lat, camera.zoom);
+      prefetchTiles(BASEMAP_TILES[0], BASEMAP_MAX_ZOOM, view, camera.zoom);
+      prefetchTiles(LABEL_TILES[0], LABEL_MAX_ZOOM, view, camera.zoom);
+      prefetchHotspots(qc, area, dateRange);
+      if (camera.zoom >= DETAIL_MIN_ZOOM) {
+        prefetchHotspots(qc, area, stepWindow(stepsFor(dateRange), sliderStep), STEP_DOT_CAP);
+      }
+    }
+    const instant = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // On landing, report the new view at once (not after the usual pause), so the
+    // old view's data is never asked for.
+    const landed = () => {
+      setView({ bbox: boundsOf(map), zoom: map.getZoom() });
+      setFlying(false);
+    };
+    map.once('moveend', landed);
+    const safety = window.setTimeout(landed, 3000);
+    map.fitBounds([[w, s], [e, n]], { ...fit, duration: instant ? 0 : 900 });
+    return () => window.clearTimeout(safety);
+  }, [selectedArea]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const shownArea = draft ?? selectedArea?.bbox ?? null;
+  const areaLayer = new PolygonLayer<{ polygon: number[][] }>({
+    id: 'selected-area',
+    data: shownArea
+      ? [{ polygon: [[shownArea[0], shownArea[1]], [shownArea[2], shownArea[1]], [shownArea[2], shownArea[3]], [shownArea[0], shownArea[3]]] }]
+      : [],
+    getPolygon: (o) => o.polygon,
+    filled: true,
+    getFillColor: [255, 255, 255, draft ? 30 : 12],
+    stroked: true,
+    getLineColor: [255, 255, 255, 230],
+    lineWidthUnits: 'pixels',
+    getLineWidth: 2,
+    updateTriggers: { getFillColor: [!!draft] },
+  });
+
   const layers = [
     outlineLayer,
+    areaLayer,
     hotspotLayer('hotspots-range', shownPoints, 1 - mix),
     hotspotLayer('hotspots-window', winPoints, mix),
   ];
@@ -364,13 +509,31 @@ export default function MapView() {
   return (
     <div className="map-wrap">
       <Map
+        ref={mapRef}
+        dragRotate={false}
+        pitchWithRotate={false}
+        touchPitch={false}
+        maxPitch={0}
+        dragPan={!drawing}
+        cursor={drawing ? 'crosshair' : undefined}
+        onMouseDown={onDrawStart}
+        onMouseMove={onDrawMove}
+        onMouseUp={onDrawEnd}
+        onTouchStart={onDrawStart}
+        onTouchMove={onDrawMove}
+        onTouchEnd={onDrawEnd}
         initialViewState={{ longitude: 20, latitude: 10, zoom: INITIAL_ZOOM }}
         mapStyle={BASE_STYLE}
         minZoom={1}
         maxZoom={12}
         renderWorldCopies={false}
         attributionControl={false}
-        onLoad={publishView}
+        onLoad={(e) => {
+          // Two-finger twist on touchscreens would rotate the map; north stays up.
+          e.target.touchZoomRotate.disableRotation();
+          e.target.keyboard.disableRotation();
+          publishView(e);
+        }}
         onMoveEnd={publishView}
         onMove={(e) => setZoomNow((z) => (Math.abs(z - e.viewState.zoom) >= 0.1 ? e.viewState.zoom : z))}
       >
