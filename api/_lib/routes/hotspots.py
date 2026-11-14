@@ -9,8 +9,8 @@ from datetime import date
 
 from fastapi import APIRouter, HTTPException, Query
 
-import db
-import points
+from _lib import db
+from _lib import points
 
 router = APIRouter()
 

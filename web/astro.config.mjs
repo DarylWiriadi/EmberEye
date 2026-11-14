@@ -6,5 +6,13 @@ import icon from 'astro-icon';
 
 // https://astro.build/config
 export default defineConfig({
-  integrations: [react(), icon()]
+  integrations: [react(), icon()],
+  vite: {
+    server: {
+      // In development, forward /api to the local FastAPI server
+      // (cd api && .venv/Scripts/python -m uvicorn index:app --port 8000).
+      // In production, Vercel routes /api to the Python function (vercel.json).
+      proxy: { '/api': 'http://127.0.0.1:8000' },
+    },
+  },
 });

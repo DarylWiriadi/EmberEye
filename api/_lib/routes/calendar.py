@@ -18,8 +18,8 @@ from datetime import date
 
 from fastapi import APIRouter, HTTPException, Query
 
-import db
-from area import select_area
+from _lib import db
+from _lib.area import select_area
 
 router = APIRouter()
 

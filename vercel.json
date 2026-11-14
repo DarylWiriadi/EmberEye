@@ -1,0 +1,18 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "cd web && npm ci",
+  "buildCommand": "cd web && npm run build",
+  "outputDirectory": "web/dist",
+  "regions": ["syd1"],
+  "functions": {
+    "api/index.py": {
+      "includeFiles": "api/{_lib,data,duckdb_ext}/**",
+      "excludeFiles": "{web/**,pipeline/**,api/.venv/**,api/data/climatology/**,api/data/calibration/**,api/duckdb_ext/*/windows_amd64/**}",
+      "maxDuration": 60
+    }
+  },
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/index" }
+  ]
+}

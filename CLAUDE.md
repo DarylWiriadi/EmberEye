@@ -65,7 +65,7 @@ Burning activity includes **agricultural and land-clearing fires**, not only wil
 | Backend | **Python FastAPI + DuckDB**, querying Parquet files |
 | Spatial index | **H3** hexagon grid (DuckDB `h3` community extension in the pipeline; `h3` Python package in the API; `h3-js` in the browser for brush/wand selection) |
 | Pipeline | Python: DuckDB, pandas/Polars, xarray, xclim |
-| Hosting | **Vercel for both** `web/` and `api/` (two Vercel projects from this repo), API pinned to the **Sydney region (`syd1`)**. Fallback: Fly.io `syd` if the API outgrows Vercel (see section 6) |
+| Hosting | **One Vercel project** (Root Directory = repo root) serving the Astro site and the FastAPI API as a Python function under `/api`, pinned to the **Sydney region (`syd1`)**; config in the root `vercel.json`. Individual hotspot points in **Cloudflare R2**. Fallback: Fly.io `syd` if the API outgrows Vercel (see section 6) |
 
 Do not use GraphQL, Next.js, PostgreSQL/PostGIS, Docker (unless we fall back to Fly.io) or a separate SPA framework. Keep it simple.
 
@@ -93,18 +93,21 @@ nasa-space-apps-2026/
 │       ├── raw/                  Downloads (gitignored)
 │       └── interim/              Intermediate files (gitignored)
 │
-├── api/                          FastAPI + DuckDB, deployed to Vercel (syd1)
+├── vercel.json                   One Vercel project: builds web/, runs api/index.py at /api/*
+├── api/                          FastAPI + DuckDB, a Python function in the same Vercel project
 │   ├── requirements.txt          fastapi, uvicorn[standard], duckdb, h3 (pinned)
-│   ├── vercel.json               Region, includeFiles
-│   ├── main.py                   App setup, CORS, routes (`app` instance)
-│   ├── db.py                     DuckDB connection, views over the Parquet files
-│   ├── area.py                   bbox / H3 cells → selected res 5 cells
-│   ├── routes/
-│   │   ├── calendar.py           GET /calendar
-│   │   ├── hotspots.py           GET /hotspots
-│   │   ├── stats.py              GET /stats
-│   │   ├── export.py             GET /export.csv, /export-summary.csv
-│   │   └── risk.py               GET /risk
+│   ├── index.py                  The function: app setup, CORS, all routes under /api
+│   ├── _lib/                     Helpers (underscore = Vercel won't make them functions)
+│   │   ├── db.py                 DuckDB connection, views over Parquet, R2 setup
+│   │   ├── area.py               bbox / H3 cells → selected res 5 cells
+│   │   ├── points.py             Hotspot points: R2, or bundled fallback region
+│   │   └── routes/
+│   │       ├── calendar.py       GET /api/calendar
+│   │       ├── hotspots.py       GET /api/hotspots
+│   │       ├── export.py         GET /api/export.csv, /api/export-summary.csv
+│   │       ├── stats.py          GET /api/stats (planned)
+│   │       └── risk.py           GET /api/risk (planned)
+│   ├── duckdb_ext/               Bundled httpfs extension (Linux build committed)
 │   ├── static/                   Sim inputs, presets, featured fires, towns (served from CDN)
 │   └── data/                     Parquet outputs from the pipeline
 │       ├── global/               Monthly counts per H3 res 5 + daily counts per H3 res 3
@@ -277,19 +280,13 @@ Rules:
 
 ### Hosting the API on Vercel
 
-- `api/` is its own Vercel project (Root Directory = `api`). Vercel auto-detects the FastAPI `app` in `main.py`. The web app reads the API URL from an env var (e.g. `PUBLIC_API_URL`).
-- `vercel.json`:
-  ```json
-  {
-    "regions": ["syd1"],
-    "functions": {
-      "main.py": { "includeFiles": "data/**", "maxDuration": 60 }
-    }
-  }
-  ```
+- **One Vercel project** for the whole site, Root Directory = repo root (empty), framework "Other". The root `vercel.json` installs and builds `web/` (output `web/dist`) and runs `api/index.py` as a Python function; a rewrite sends every `/api/*` request to it, and FastAPI serves all routes under `/api`. The website calls the API with relative URLs (`/api/calendar`), so there is no separate API address and no CORS in production. In local dev, Astro's dev server forwards `/api` to `uvicorn index:app --port 8000` (see `web/astro.config.mjs`).
+- Helpers live in `api/_lib/`: Vercel turns every `.py` file in `api/` into its own function unless the file or folder starts with `_`.
+- Environment variables (project settings): `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`. Deployment Protection (Vercel Authentication) must be **disabled** so the site is public.
+- Vercel sets `AWS_REGION` (e.g. `ap-southeast-2`); the DuckDB R2 secret sets `REGION 'auto'` so R2 doesn't reject it. `/api/health` shows the R2 status and the last R2 error (keys masked).
 - **H3 in the API**: the API uses the `h3` Python package (cell conversion only); it does **not** need the DuckDB `h3` extension, so there is no build step and nothing is downloaded at runtime. The pipeline precomputes every H3 index the API needs (e.g. `global/cells_res5.parquet` has each cell's res 3 parent and centre lat/lng). The DuckDB `h3` extension is used only by the offline pipeline.
 - **Read-only filesystem**: open DuckDB in memory, read Parquet files by path, and set `temp_directory` to `/tmp`.
-- **Limits to respect**: a **Python function bundle is limited to 225 MB** (measured on a real deploy: the build fails with `LAMBDA_SIZE_EXCEEDED`). Target ~205 MB: global counts ~127 MB, httpfs 27 MB, SE Australia fallback points 20 MB (the only offline region), packages ~23 MB. Files the API doesn't read are excluded with `excludeFiles` in `api/vercel.json` (`.vercelignore` is **not** applied to git deploys with a Root Directory: the build log says "Removed 0 ignored files"). Individual hotspot points live in Cloudflare R2. Responses ≤ 4.5 MB unless streamed, so **stream CSV exports** and keep `/hotspots` responses small (bbox + date, with a cap).
+- **Limits to respect**: a **Python function bundle is limited to 225 MB** (measured on a real deploy: the build fails with `LAMBDA_SIZE_EXCEEDED`). Target ~205 MB: global counts ~127 MB, httpfs 27 MB, SE Australia fallback points 20 MB (the only offline region), packages ~23 MB. Files the API doesn't read (and `web/`, `pipeline/`) are excluded with `excludeFiles` in the root `vercel.json` (`.vercelignore` was not applied in testing: the build log said "Removed 0 ignored files"). Individual hotspot points live in Cloudflare R2. Responses ≤ 4.5 MB unless streamed, so **stream CSV exports** and keep `/hotspots` responses small (bbox + date, with a cap).
 - **Static files** (`static/`): mount with FastAPI `StaticFiles` so Vercel serves them from its CDN.
 - **Cold starts**: the first request after idle loads Python + DuckDB. Warm the site up before presenting.
 

@@ -14,8 +14,8 @@ from datetime import date
 import duckdb
 import h3
 
-import db
-from area import parse_bbox, select_area
+from _lib import db
+from _lib.area import parse_bbox, select_area
 
 GRID = 24  # sample points per side when finding which base cells a bbox touches
 

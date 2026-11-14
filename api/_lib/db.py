@@ -20,7 +20,7 @@ from pathlib import Path
 
 import duckdb
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent   # the api/ folder
 DATA = ROOT / "data"
 EXT_DIR = ROOT / "duckdb_ext"   # bundled extensions; nothing is downloaded at runtime
 

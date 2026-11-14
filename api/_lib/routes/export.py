@@ -10,10 +10,10 @@ from datetime import date
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
-import db
-import points
-from routes.calendar import calendar
-from routes.hotspots import clamp_dates
+from _lib import db
+from _lib import points
+from _lib.routes.calendar import calendar
+from _lib.routes.hotspots import clamp_dates
 
 router = APIRouter()
 
