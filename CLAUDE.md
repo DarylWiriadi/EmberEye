@@ -88,7 +88,7 @@ nasa-space-apps-2026/
 │   ├── weather.py                MERRA-2 monthly weather + soil → weather_res3
 │   ├── gfwed.py                  GFWED monthly FWI → `fwi` column in weather_res3
 │   ├── risk.py                   FWI + dryness + climatology → risk tiles
-│   ├── sim_inputs.py             Fuel, slope, water rasters for demo regions
+│   ├── sim_inputs.py             Global 1° fuel + elevation tiles for the simulation (→ R2 sim/)
 │   ├── towns.py                  Pre-baked town lists for demo regions
 │   ├── validate.py               Holdout test + raw-vs-harmonized chart
 │   └── data/
@@ -108,7 +108,7 @@ nasa-space-apps-2026/
 │   │       ├── hotspots.py       GET /api/hotspots
 │   │       ├── export.py         GET /api/export.csv, /api/export-summary.csv
 │   │       ├── stats.py          GET /api/stats: monthly weather + FWI, land cover
-│   │       └── risk.py           GET /api/risk (planned)
+│   │       └── risk.py           GET /api/risk: monthly outlook per H3 res 3 cell, computed from FWI, soil wetness and fire history (no extra data files)
 │   ├── duckdb_ext/               Bundled httpfs extension (Linux build committed)
 │   ├── static/                   Sim inputs, presets, featured fires, towns (served from CDN)
 │   └── data/                     Parquet outputs from the pipeline
@@ -284,7 +284,7 @@ Rules:
 - **One Vercel project** for the whole site, Root Directory = repo root (empty), framework "Other". The root `vercel.json` installs and builds `web/` (output `web/dist`) and runs `api/index.py` as a Python function; a rewrite sends every `/api/*` request to it, and FastAPI serves all routes under `/api`. The website calls the API with relative URLs (`/api/calendar`), so there is no separate API address and no CORS in production. In local dev, Astro's dev server forwards `/api` to `uvicorn index:app --port 8000` (see `web/astro.config.mjs`).
 - Helpers live in `api/_lib/`: Vercel turns every `.py` file in `api/` into its own function unless the file or folder starts with `_`.
 - Environment variables (project settings): `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`. Deployment Protection (Vercel Authentication) must be **disabled** so the site is public.
-- **R2 layout** (`pipeline/export_points.py`, uploaded with `upload_r2.py`): `points/year=/base=NNN.parquet` (every point, one file per H3 base cell, sorted by H3 res 2 area then date in 20k-row groups so zoomed-in requests only download nearby row groups), plus `sample/year=` (1 in 32, for long ranges) and `wide/year=` (1 in 4, sorted by date, for continent/world views). `/hotspots` picks the cheapest one that answers the request (ranges over a year always use `sample`); reading every point for a world view is far too slow (34–54 s for 9 months). The map's slider moves in steps (`web/src/lib/steps.ts`): one day for short ranges, equal multi-day windows (max 31 steps) for longer ones.
+- **R2 layout** (`pipeline/export_points.py`, uploaded with `upload_r2.py`): `points/year=/base=NNN.parquet` (every point, one file per H3 base cell, sorted by H3 res 2 area then date in 20k-row groups so zoomed-in requests only download nearby row groups), plus `sample/year=` (1 in 32, for long ranges) and `wide/year=` (1 in 4, sorted by date, for continent/world views). `sim/<south>_<west>.bin` (gzip; 240×240 uint8 IGBP land cover from MCD12Q1 with +128 where a Natural Earth major road crosses, then 120×120 int16 LE elevation from SRTMGL30; only tiles with burnable land, 60S–80N; `sim/index.json` lists them) holds the simulation inputs. `/hotspots` picks the cheapest one that answers the request (ranges over a year always use `sample`); reading every point for a world view is far too slow (34–54 s for 9 months). The map's slider moves in steps (`web/src/lib/steps.ts`): one day for short ranges, equal multi-day windows (max 31 steps) for longer ones.
 - Vercel sets `AWS_REGION` (e.g. `ap-southeast-2`); the DuckDB R2 secret sets `REGION 'auto'` so R2 doesn't reject it. `/api/health` shows the R2 status and the last R2 error (keys masked).
 - **H3 in the API**: the API uses the `h3` Python package (cell conversion only); it does **not** need the DuckDB `h3` extension, so there is no build step and nothing is downloaded at runtime. The pipeline precomputes every H3 index the API needs (e.g. `global/cells_res5.parquet` has each cell's res 3 parent and centre lat/lng). The DuckDB `h3` extension is used only by the offline pipeline.
 - **DuckDB 2.0 pitfalls**: one big multi-CTE query for large areas (the daily calendar) spilled >15 GB of temp files or crashed with an internal error that invalidates the whole database. Keep queries simple (do arithmetic in Python), `max_temp_directory_size` is capped at 4 GiB, and `index.py` resets the connection after any `FatalException`/`InternalException`.
