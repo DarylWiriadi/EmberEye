@@ -92,3 +92,10 @@ DEMO_REGIONS = {
     # "western-canada": ("Western Canada", (-139.0, 48.5, -110.0, 60.0)),    # ~26 MB
     # "mediterranean": ("Mediterranean", (-10.0, 35.0, 28.0, 45.0)),         # ~15 MB
 }
+
+# --- Land cover (MODIS MCD12C1, 0.05 degree, yearly) --------------------------
+LANDCOVER_RAW = RAW_DIR / "mcd12c1"
+LANDCOVER_DIR = INTERIM_DIR / "landcover"
+
+# --- Weather (MERRA-2 monthly, global, ~50 km) --------------------------------
+MERRA2_RAW = RAW_DIR / "merra2"
