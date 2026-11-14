@@ -120,6 +120,7 @@
 
 html {
   background: var(--color-bg);
+  -webkit-tap-highlight-color: transparent; /* no grey box on tap in iOS Safari; buttons style their own pressed state */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
@@ -185,7 +186,11 @@ ol[role='list'] {
   padding: 0;
 }
 
-/* Sections sit below the nav when jumped to */
+/*
+ * Sections land just below the sticky nav when jumped to.
+ * (Not scroll-padding on html: that makes browsers scroll the page whenever
+ * keyboard focus moves onto a link inside the sticky nav.)
+ */
 section[id] {
   scroll-margin-top: calc(var(--nav-height) + var(--space-s));
 }
