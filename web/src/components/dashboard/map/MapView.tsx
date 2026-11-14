@@ -10,7 +10,10 @@ import Map, {
 } from 'react-map-gl/maplibre';
 import { describeBbox } from '../area/AreaToolbar';
 import { MapboxOverlay, type MapboxOverlayProps } from '@deck.gl/mapbox';
-import { PolygonLayer, ScatterplotLayer } from '@deck.gl/layers';
+import { BitmapLayer, PolygonLayer, ScatterplotLayer } from '@deck.gl/layers';
+import { useSimStore } from '../../../store/useSimStore';
+import { burntBounds, frameImage } from '../../../lib/simulation';
+import { STEPS_PER_HOUR } from '../../../workers/simulation/model';
 import { cellsToMultiPolygon, latLngToCell } from 'h3-js';
 import { DataFilterExtension } from '@deck.gl/extensions';
 import type { PickingInfo } from '@deck.gl/core';
@@ -21,7 +24,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { useAppStore, useSliderWindow, useSteps } from '../../../store/useAppStore';
 import { addDays, DAY_MS, stepOf, stepsFor, stepWindow, windowPhrase } from '../../../lib/steps';
 import { useQueryClient } from '@tanstack/react-query';
-import { fetchBbox, prefetchHotspots, useBurned, useHotspots, worldHotspotsKey, type HotspotsResponse } from '../../../lib/api';
+import { fetchBbox, prefetchHotspots, useBurned, useHotspots, useRisk, worldHotspotsKey, type HotspotsResponse } from '../../../lib/api';
+import { describeRisk, RISK_ALPHA, RISK_COLORS, useRiskCells, type RiskCell } from '../../../lib/risk';
 import {
   BASEMAP_ATTRIBUTION,
   BASEMAP_MAX_ZOOM,
@@ -321,7 +325,9 @@ export default function MapView() {
   // OUTLINE_WINDOW_DAYS up to the end of the slider's window. Built from the
   // loaded dots when they're all there (works while playing); otherwise asked for
   // just those days once the slider settles, without waiting for the dots.
-  const outlinesWanted = zoom >= OUTLINE_MIN_ZOOM;
+  const showHotspots = useAppStore((s) => s.showHotspots);
+  const showTrail = useAppStore((s) => s.showTrail);
+  const outlinesWanted = showTrail && zoom >= OUTLINE_MIN_ZOOM;
   const dotsComplete = rangeFresh && !rangeQuery.data!.truncated;
   const outlineSpan = useMemo(() => {
     if (!win || !range) return null;
@@ -482,21 +488,107 @@ export default function MapView() {
     updateTriggers: { getFillColor: [!!draft] },
   });
 
+  // Simulated fire: one image per playback position (quarter hours), and the ignition point.
+  const simPlacing = useSimStore((s) => s.placing);
+  const setIgnition = useSimStore((s) => s.setIgnition);
+  const ignition = useSimStore((s) => s.ignition);
+  const simResult = useSimStore((s) => s.result);
+  const simHour = useSimStore((s) => Math.round(s.hour * 4) / 4);
+  const simImage = useMemo(
+    () => (simResult && !simResult.unburnable ? frameImage(simResult, simHour, STEPS_PER_HOUR) : null),
+    [simResult, simHour],
+  );
+  const simLayer =
+    simImage && simResult
+      ? new BitmapLayer({
+          id: 'sim-fire',
+          image: simImage,
+          bounds: [simResult.west, simResult.south, simResult.east, simResult.north],
+          pickable: false,
+        })
+      : null;
+  const ignitionLayer = ignition
+    ? new ScatterplotLayer<{ lat: number; lon: number }>({
+        id: 'sim-ignition',
+        data: [ignition],
+        getPosition: (d) => [d.lon, d.lat],
+        radiusUnits: 'pixels',
+        getRadius: 6,
+        getFillColor: [255, 255, 255, 255],
+        stroked: true,
+        getLineColor: [255, 122, 26, 255],
+        lineWidthUnits: 'pixels',
+        getLineWidth: 3,
+      })
+    : null;
+
+  // A finished simulation: fit the map to everything it burnt.
+  useEffect(() => {
+    if (!simResult || simResult.unburnable) return;
+    const b = burntBounds(simResult);
+    if (!b) return;
+    const instant = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    mapRef.current?.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 100, maxZoom: 11, duration: instant ? 0 : 900 });
+  }, [simResult]);
+
+  // Risk outlook hexagons, while the Risk tab is open.
+  const riskShown = useAppStore((s) => s.sideOpen && s.sideTab === 'risk' && s.riskOn);
+  const riskMonth = useAppStore((s) => s.riskMonth);
+  const riskQuery = useRisk(riskMonth, riskShown);
+  const riskCells = useRiskCells(riskQuery.data);
+  const riskLayer = riskShown
+    ? new PolygonLayer<RiskCell>({
+        id: 'risk',
+        data: riskCells,
+        getPolygon: (c) => c.polygon,
+        filled: true,
+        getFillColor: (c) => [...RISK_COLORS[c.cls], RISK_ALPHA[c.cls]] as [number, number, number, number],
+        stroked: true,
+        getLineColor: (c) => [...RISK_COLORS[c.cls], 90] as [number, number, number, number],
+        lineWidthUnits: 'pixels',
+        getLineWidth: 1,
+        pickable: true,
+        autoHighlight: true,
+        highlightColor: [255, 255, 255, 60],
+      })
+    : null;
+
+  // "Show on the map" from the risk list: move there without picking an area.
+  const focus = useAppStore((s) => s.focus);
+  useEffect(() => {
+    if (!focus) return;
+    const [w, s, e, n] = focus.bbox;
+    const instant = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    mapRef.current?.fitBounds([[w, s], [e, n]], { padding: 80, maxZoom: 8, duration: instant ? 0 : 900 });
+  }, [focus]);
+
+  // While a simulation or the risk outlook is shown, real hotspots fade back so they don't compete.
+  const dotFade = simLayer ? 0.25 : riskLayer ? 0.35 : 1;
   const layers = [
+    riskLayer,
     outlineLayer,
     areaLayer,
-    hotspotLayer('hotspots-range', shownPoints, 1 - mix),
-    hotspotLayer('hotspots-window', winPoints, mix),
+    hotspotLayer('hotspots-range', shownPoints, showHotspots ? (1 - mix) * dotFade : 0),
+    hotspotLayer('hotspots-window', winPoints, showHotspots ? mix * dotFade : 0),
+    simLayer,
+    ignitionLayer,
   ];
 
-  const getTooltip = useCallback(({ object }: PickingInfo) => {
+
+
+  const riskData = riskQuery.data;
+  const getTooltip = useCallback(({ object, layer }: PickingInfo) => {
     if (!object) return null;
+    if (layer?.id === 'risk') {
+      return riskData ? describeRisk(object as RiskCell, riskData.classes, riskData.month).join('\n') : null;
+    }
     const p = object as Point;
     const time = String(p.time).padStart(4, '0');
     return `${p.date} ${time.slice(0, 2)}:${time.slice(2)} UTC\nFRP ${p.frp} MW\n${p.sensor.replace('_', ' ')}, confidence ${p.confidence}\nObserved detection`;
-  }, []);
+  }, [riskData]);
 
   const outlineNote = (() => {
+    if (!showTrail) return null;
     if (!outlinesWanted) return 'Zoom in to see fire outlines';
     if (burnedQuery.error) return 'Zoom in further to see fire outlines';
     if (outlines.length > 0 && outlineSpan)
@@ -515,7 +607,10 @@ export default function MapView() {
         touchPitch={false}
         maxPitch={0}
         dragPan={!drawing}
-        cursor={drawing ? 'crosshair' : undefined}
+        cursor={drawing || simPlacing ? 'crosshair' : undefined}
+        onClick={(e) => {
+          if (simPlacing) setIgnition(e.lngLat.lat, e.lngLat.lng);
+        }}
         onMouseDown={onDrawStart}
         onMouseMove={onDrawMove}
         onMouseUp={onDrawEnd}
@@ -543,7 +638,7 @@ export default function MapView() {
       </Map>
       <MapStatus
         message={status}
-        showLegend={stepCount > 0 || fromWinQuery}
+        showLegend={showHotspots && (stepCount > 0 || fromWinQuery)}
         frpMax={frpMax}
         fetching={rangeQuery.isFetching || (useWinQuery && winQuery.isFetching)}
         error={activeQuery.error as Error | null}

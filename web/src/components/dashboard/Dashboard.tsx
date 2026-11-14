@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { CalendarDays, ChevronLeft, ChevronRight, Flame, Gauge } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Flame, Gauge, Star } from 'lucide-react';
 import { useHealth } from '../../lib/api';
 import { featuredFire } from '../../lib/featuredFires';
 import { openFeaturedFire } from '../../lib/openFeaturedFire';
 import FeaturedList from './featured/FeaturedList';
+import RiskPanel from './risk/RiskPanel';
+import SimulationPanel from './simulation/SimulationPanel';
 import { useAppStore } from '../../store/useAppStore';
+import { useSimStore } from '../../store/useSimStore';
 import MapView from './map/MapView';
 import DownloadMenu from './downloads/DownloadMenu';
 import AreaToolbar from './area/AreaToolbar';
@@ -25,21 +28,27 @@ function addDays(iso: string, days: number) {
   return d.toISOString().slice(0, 10);
 }
 
-type SideTab = 'calendar' | 'risk' | 'featured';
 const SIDE_TABS = [
   { id: 'calendar', label: 'Calendar', Icon: CalendarDays },
+  { id: 'simulate', label: 'Simulate', Icon: Flame },
+  { id: 'featured', label: 'Featured', Icon: Star },
   { id: 'risk', label: 'Risk', Icon: Gauge },
-  { id: 'featured', label: 'Featured', Icon: Flame },
 ] as const;
 
 function DashboardShell() {
-  // Open by default on wide screens (the calendar lives there); closed on phones.
-  const [sideOpen, setSideOpen] = useState(() => window.matchMedia('(min-width: 48rem)').matches);
-  const [sideTab, setSideTab] = useState<SideTab>('calendar');
+  const sideOpen = useAppStore((s) => s.sideOpen);
+  const setSideOpen = useAppStore((s) => s.setSideOpen);
+  const sideTab = useAppStore((s) => s.sideTab);
+  const setSideTab = useAppStore((s) => s.showSideTab);
   const health = useHealth();
   const range = useAppStore((s) => s.dateRange);
   const setRange = useAppStore((s) => s.setDateRange);
   const coverage = health.data?.coverage;
+
+  // Picking an ignition point only makes sense with the Simulate tab open.
+  useEffect(() => {
+    if (sideTab !== 'simulate' || !sideOpen) useSimStore.getState().setPlacing(false);
+  }, [sideTab, sideOpen]);
 
   useEffect(() => {
     if (!coverage || range) return;
@@ -66,7 +75,7 @@ function DashboardShell() {
             <button
               type="button"
               className="dash-side-tab"
-              onClick={() => setSideOpen((o) => !o)}
+              onClick={() => setSideOpen(!sideOpen)}
               aria-expanded={sideOpen}
               aria-controls="dash-side-panel"
               aria-label={sideOpen ? 'Close side panel' : 'Open side panel'}
@@ -98,8 +107,9 @@ function DashboardShell() {
                 aria-labelledby={`side-tab-${sideTab}`}
               >
                 {sideTab === 'calendar' && <CalendarWidget />}
-                {sideTab === 'risk' && <div className="dash-slot">Risk outlook (coming soon)</div>}
+                {sideTab === 'risk' && <RiskPanel />}
                 {sideTab === 'featured' && <FeaturedList />}
+                {sideTab === 'simulate' && <SimulationPanel />}
               </div>
             </div>
           </aside>

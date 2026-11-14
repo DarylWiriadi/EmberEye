@@ -299,3 +299,26 @@ export function useBurned(bbox: Bbox | null, range: DateRange | null, enabled: b
     retry: false,
   });
 }
+
+export interface RiskResponse {
+  month: string;
+  latest: string;
+  conditions: { fwi: string | null; soil: string | null };
+  classes: string[];
+  breaks: number[];
+  /** [cell3, score 0-100, class 0-4, fwi %ile, dryness %ile, activity %ile] */
+  cells: [string, number, number, number | null, number | null, number][];
+  sources: string[];
+  note: string;
+}
+
+/** Fire activity outlook per H3 res 3 cell; `month` null = the latest. */
+export function useRisk(month: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ['risk', month],
+    queryFn: ({ signal }) => getJson<RiskResponse>('/risk', { month: month ?? undefined }, signal),
+    enabled,
+    placeholderData: keepPreviousData,
+    staleTime: 60 * 60_000,
+  });
+}

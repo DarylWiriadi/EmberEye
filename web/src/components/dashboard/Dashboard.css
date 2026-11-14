@@ -70,11 +70,16 @@
   box-shadow: inset 0 -2px 0 var(--color-ember);
 }
 
+/* Below the buttons, out of the toolbar's flow, so a long name never pushes Download. */
 .area-hint,
 .area-chip {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  width: max-content;
   max-width: min(420px, calc(100vw - 24px));
   margin: 0;
   padding: 6px 10px;
@@ -569,8 +574,8 @@
   flex-direction: column;
   gap: 12px;
   height: 100%;
-  padding: 12px;
-  overflow: auto;
+  padding: 12px 0 0 12px;
+  overflow: hidden;
   background: var(--color-surface);
   border-left: 1px solid var(--color-border);
 }
@@ -578,22 +583,33 @@
 .side-tabs {
   display: flex;
   flex-shrink: 0;
+  justify-content: space-between;
+  gap: 12px;
+  margin-right: 12px;
   border-bottom: 1px solid var(--color-border);
 }
 
 .side-tab {
   display: inline-flex;
-  flex: 1;
+  flex: 0 1 auto;
+  min-width: 0;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
   height: 40px;
+  padding: 0 4px;
   border: 0;
   background: none;
   color: var(--color-text-muted);
   font: inherit;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  white-space: nowrap;
   cursor: pointer;
+}
+
+/* Icons keep their size; they were squeezed to dots when the tabs got tight. */
+.side-tab svg {
+  flex-shrink: 0;
 }
 
 .side-tab:hover {
@@ -605,8 +621,387 @@
   box-shadow: inset 0 -2px 0 var(--color-ember);
 }
 
+/* Only the tab's content scrolls (the tabs stay put), and room for the scrollbar is
+   always kept so nothing shifts sideways when one appears. */
 .side-pane {
+  flex: 1;
   min-height: 0;
+  padding: 0 6px 12px 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+#side-pane-simulate {
+  padding-right: 12px;
+  scrollbar-width: none;
+}
+
+#side-pane-simulate::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------- Fire-spread simulation (side panel) ---------- */
+
+.sim {
+  display: grid;
+  gap: 12px;
+}
+
+.sim-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+/* Capitals have no descenders, so trim the box to cap height to centre them. */
+.sim-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  line-height: 1;
+  text-box: trim-both cap alphabetic;
+  border: 1px dashed var(--color-ember);
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-ember);
+}
+
+.sim-lede,
+.sim-note,
+.sim-coords {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.sim-coords {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.sim-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+.sim-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-m);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.sim-btn:hover,
+.sim-btn[aria-pressed='true'] {
+  border-color: var(--color-ember);
+}
+
+.sim-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.sim-form label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.sim-form label > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sim-form output {
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.sim-form select {
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-s);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.sim-form input[type='range'],
+.sim-play input[type='range'] {
+  width: 100%;
+  accent-color: var(--color-ember);
+}
+
+.sim-wide {
+  grid-column: 1 / -1;
+}
+
+.sim-run {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--radius-m);
+  background: var(--color-ember);
+  color: var(--color-on-ember);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sim-run:hover:not(:disabled) {
+  background: var(--color-ember-hover);
+}
+
+.sim-run:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.sim-result {
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--color-border);
+}
+
+.sim-play {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sim-hour {
+  min-width: 3.5em;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  text-align: right;
+  color: var(--color-ember);
+}
+
+.sim-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0;
+}
+
+.sim-stats div {
+  padding: 8px 10px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-m);
+}
+
+.sim-stats dt {
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.sim-stats dd {
+  margin: 2px 0 0;
+  font-size: 1rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.sim-error {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-ember);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- Risk outlook (side panel) ---------- */
+
+.risk {
+  display: grid;
+  gap: 12px;
+}
+
+.risk-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px 10px;
+}
+
+.risk-month {
+  display: grid;
+  gap: 4px;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.risk-month input {
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-s);
+  background: var(--color-bg);
+  color: var(--color-text);
+  color-scheme: dark;
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.risk-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  font-size: 0.8125rem;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.risk-toggle input {
+  accent-color: var(--color-ember);
+}
+
+.risk-legend {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.risk-legend > div {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+
+.risk-legend .risk-swatch {
+  width: 100%;
+  height: 8px;
+}
+
+.risk-swatch {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.risk-subhead {
+  margin: 4px 0 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.risk-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.risk-list li {
+  display: flex;
+  gap: 6px;
+}
+
+.risk-place {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 2px 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-m);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.risk-place:hover,
+.risk-sim:hover {
+  border-color: var(--color-ember);
+}
+
+.risk-score {
+  margin-left: 4px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.risk-where {
+  display: inline-flex;
+  grid-column: 2;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+}
+
+.risk-sim {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-m);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.risk .sim-note svg {
+  vertical-align: -2px;
+}
+
+.risk-disclaimer {
+  font-style: italic;
 }
 
 /* ---------- Featured fires (side panel) ---------- */
@@ -1137,6 +1532,33 @@
 
 .map-legend {
   margin-bottom: 6px;
+}
+
+.map-layers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0 0 6px;
+  padding: 0 0 6px;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.map-layers label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  cursor: pointer;
+}
+
+.map-layers input {
+  margin: 0;
+  accent-color: var(--color-ember);
+}
+
+.map-layers .map-outline-swatch {
+  margin-top: 0;
 }
 
 .map-status-outline {
