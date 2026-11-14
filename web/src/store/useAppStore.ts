@@ -30,6 +30,8 @@ interface AppState {
   areaTool: 'none' | 'rectangle';
   setArea: (area: SelectedArea | null) => void;
   setAreaTool: (tool: 'none' | 'rectangle') => void;
+  /** Moves the slider to a day; outside the date range, the range becomes that day's month. */
+  jumpToDate: (iso: string, bounds?: DateRange) => void;
 }
 
 export const useAppStore = create<AppState>()((set, get) => ({
@@ -69,6 +71,19 @@ export const useAppStore = create<AppState>()((set, get) => ({
   areaTool: 'none',
   setArea: (area) => set({ area, areaTool: 'none' }),
   setAreaTool: (areaTool) => set({ areaTool }),
+  jumpToDate: (iso, bounds) => {
+    let range = get().dateRange;
+    if (!range || iso < range.start || iso > range.end) {
+      const start = `${iso.slice(0, 7)}-01`;
+      const last = new Date(`${start}T00:00:00Z`);
+      last.setUTCMonth(last.getUTCMonth() + 1, 0);
+      let end = last.toISOString().slice(0, 10);
+      if (bounds && end > bounds.end) end = bounds.end;
+      range = { start: bounds && start < bounds.start ? bounds.start : start, end };
+      get().setDateRange(range);
+    }
+    get().scrubTo(stepOf(stepsFor(range), iso));
+  },
 }));
 
 /** The area stats and downloads use: the picked area, else the map view. */

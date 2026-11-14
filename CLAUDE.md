@@ -56,7 +56,7 @@ Burning activity includes **agricultural and land-clearing fires**, not only wil
 | Map | **MapLibre GL JS** via `react-map-gl/maplibre` |
 | Data layers | **deck.gl** via `MapboxOverlay` (added with `useControl`) |
 | State | **Zustand** (one shared store) |
-| Calendar | **react-vega** (Vega-Lite heatmap) |
+| Calendar | Plain React grid of buttons (`calendar/CalendarWidget.tsx`): simpler click-drag, keyboard and slider sync than react-vega, which was the original plan |
 | Live charts | **uPlot** |
 | API calls | **TanStack Query** |
 | Simulation | TypeScript in a **Web Worker** |

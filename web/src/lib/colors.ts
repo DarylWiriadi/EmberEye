@@ -34,3 +34,18 @@ export function logScale(value: number, max: number): number {
 }
 
 export const VIRIDIS_CSS = `linear-gradient(to right, ${VIRIDIS.map((c) => `rgb(${c.join(',')})`).join(', ')})`;
+
+// Blue-orange diverging (never red-green): quieter than usual <- grey -> busier.
+const QUIET: [number, number, number] = [61, 139, 253];
+const NEUTRAL: [number, number, number] = [74, 82, 96];
+const BUSY: [number, number, number] = [255, 122, 26];
+
+/** t in -1..1: -1 = much quieter, 0 = usual, 1 = much busier. */
+export function diverging(t: number): [number, number, number] {
+  const x = Math.max(-1, Math.min(1, t));
+  const [a, b] = x < 0 ? [NEUTRAL, QUIET] : [NEUTRAL, BUSY];
+  const f = Math.abs(x);
+  return [0, 1, 2].map((i) => Math.round(a[i] + (b[i] - a[i]) * f)) as [number, number, number];
+}
+
+export const DIVERGING_CSS = `linear-gradient(to right, rgb(${QUIET.join(',')}), rgb(${NEUTRAL.join(',')}), rgb(${BUSY.join(',')}))`;
