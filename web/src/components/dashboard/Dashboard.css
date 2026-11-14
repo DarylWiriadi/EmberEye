@@ -835,6 +835,81 @@
   width: 100%;
 }
 
+/* Per-chart download: shows on hover or keyboard focus; always on touch screens. */
+.chart-dl {
+  position: relative;
+  margin-left: auto;
+}
+
+.chart-dl-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-s);
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+
+.stats-chart:hover .chart-dl-btn,
+.stats-chart:focus-within .chart-dl-btn,
+.chart-dl-btn[aria-expanded='true'] {
+  opacity: 1;
+}
+
+.chart-dl-btn:hover,
+.chart-dl-btn[aria-expanded='true'] {
+  border-color: var(--color-border);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+.chart-dl-btn:disabled {
+  visibility: hidden;
+}
+
+@media (hover: none) {
+  .chart-dl-btn {
+    opacity: 1;
+  }
+}
+
+.chart-dl-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 5;
+  display: grid;
+  min-width: 140px;
+  padding: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-m);
+  background: var(--color-surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.4);
+}
+
+.chart-dl-menu button {
+  height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chart-dl-menu button:hover,
+.chart-dl-menu button:focus-visible {
+  background: var(--color-surface-raised);
+}
+
 .stats-chart-body {
   position: relative;
 }
@@ -842,7 +917,7 @@
 .stats-chart-empty {
   position: absolute;
   inset: 0 0 auto;
-  height: 150px;
+  height: 190px;
   display: grid;
   place-items: center;
   margin: 0;
@@ -863,6 +938,18 @@
 
 .stats-chart .u-legend .u-series th {
   font-weight: 400;
+}
+
+/* Series first, then the time on its own row at the bottom. */
+.stats-chart .u-legend tbody {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 4px;
+}
+
+.stats-chart .u-legend .u-series:first-child {
+  order: 1;
+  flex-basis: 100%;
 }
 
 .stats-chart .u-legend .u-value {

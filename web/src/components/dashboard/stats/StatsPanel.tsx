@@ -10,6 +10,7 @@ const DAY_LEVEL_MAX_DAYS = 366;
 const WEATHER_EMPTY = 'No available data for these months yet';
 const EMBER = '#ff7a1a';
 const QUIETER = '#3d8bfd';
+const SRC_FIRE = 'NASA FIRMS MODIS + VIIRS, harmonized to VIIRS S-NPP';
 
 /** A log2 ratio as "3.2×", "1×" or "0.25×". */
 const timesUsual = (lr: number) => {
@@ -166,6 +167,9 @@ export default function StatsPanel() {
       soil: [wx, steps((w) => w.soil)] as uPlot.AlignedData,
     };
   }, [periods, stats.data]);
+  const dateCol = level === 'day' ? 'date' : 'month';
+  const weatherRows = stats.data?.weather ?? [];
+  const fileName = (what: string) => `embereye_${what}_${range?.start ?? ''}_${range?.end ?? ''}`;
   const xRange: [number, number] | undefined = range
     ? [toTime(range.start), toTime(range.end) + 86_400]
     : undefined;
@@ -268,6 +272,10 @@ export default function StatsPanel() {
         <TimeSeriesChart
           updating={calStatus !== 'ready'}
           title="Fire activity (fire cell-days, harmonized)"
+          fileName={fileName('fire_activity')}
+          source={SRC_FIRE}
+          xUnit={level}
+          csv={() => ({ header: [dateCol, 'fire_cell_days_harmonized', 'usual_median_fire_cell_days'], rows: periods.map((p) => [p.period, p.fire_days, p.median]) })}
           data={charts.activity}
           series={[
             { label: 'This period', color: EMBER },
@@ -280,6 +288,10 @@ export default function StatsPanel() {
         <TimeSeriesChart
           updating={calStatus !== 'ready'}
           title="Compared with usual"
+          fileName={fileName('compared_with_usual')}
+          source={SRC_FIRE}
+          xUnit={level}
+          csv={() => ({ header: [dateCol, 'fire_cell_days_harmonized', 'usual_median_fire_cell_days', 'times_usual'], rows: periods.map((p) => [p.period, p.fire_days, p.median, p.ratio_to_median]) })}
           note="× the median for this time of year"
           data={charts.anomaly}
           series={[
@@ -296,6 +308,10 @@ export default function StatsPanel() {
         <TimeSeriesChart
           updating={calStatus !== 'ready'}
           title="Intensity (fire radiative power, MW)"
+          fileName={fileName('intensity_frp')}
+          source={SRC_FIRE}
+          xUnit={level}
+          csv={() => ({ header: [dateCol, 'frp_mw_observed'], rows: periods.map((p) => [p.period, p.frp_mw]) })}
           data={charts.frp}
           series={[{ label: 'FRP', color: EMBER }]}
           band={band}
@@ -305,36 +321,48 @@ export default function StatsPanel() {
         <TimeSeriesChart
           updating={statsStatus !== 'ready'}
           title="Fire Weather Index"
+          fileName={fileName('fire_weather_index')}
+          source='NASA GISS GFWED (MERRA-2; GEOS-5 rescaled after Apr 2026)'
+          csv={() => ({ header: ['month', 'fire_weather_index'], rows: weatherRows.map((w) => [w.month, w.fwi]) })}
           note="GFWED, monthly"
           data={charts.fwi}
           series={[{ label: 'FWI', color: EMBER }]}
           band={monthBand}
           xRange={xRange}
           stepped
+          xUnit="month"
           emptyText={WEATHER_EMPTY}
           format={(v) => v.toFixed(0)}
         />
         <TimeSeriesChart
           updating={statsStatus !== 'ready'}
           title="Temperature (°C)"
+          fileName={fileName('temperature')}
+          source='NASA GMAO MERRA-2 monthly'
+          csv={() => ({ header: ['month', 'air_temperature_c'], rows: weatherRows.map((w) => [w.month, w.t2m]) })}
           note="MERRA-2, monthly"
           data={charts.t2m}
           series={[{ label: 'Air temperature', color: EMBER }]}
           band={monthBand}
           xRange={xRange}
           stepped
+          xUnit="month"
           emptyText={WEATHER_EMPTY}
           format={(v) => v.toFixed(0)}
         />
         <TimeSeriesChart
           updating={statsStatus !== 'ready'}
           title="Topsoil wetness (%)"
+          fileName={fileName('topsoil_wetness')}
+          source='NASA GMAO MERRA-2 monthly'
+          csv={() => ({ header: ['month', 'topsoil_wetness_pct'], rows: weatherRows.map((w) => [w.month, w.soil]) })}
           note="MERRA-2, monthly · lower is drier"
           data={charts.soil}
           series={[{ label: 'Topsoil wetness', color: EMBER }]}
           band={monthBand}
           xRange={xRange}
           stepped
+          xUnit="month"
           emptyText={WEATHER_EMPTY}
           format={(v) => v.toFixed(0)}
         />

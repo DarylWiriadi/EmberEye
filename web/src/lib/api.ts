@@ -56,7 +56,11 @@ export async function downloadFile(path: string, params: Params) {
   const res = await fetch(apiUrl(path, params));
   if (!res.ok) throw await failure(res);
   const blob = await res.blob();
-  const name = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ?? 'embereye.csv';
+  saveBlob(blob, /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ?? 'embereye.csv');
+}
+
+/** Saves a file made in the browser (chart images, chart data). */
+export function saveBlob(blob: Blob, name: string) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = name;
@@ -64,6 +68,16 @@ export async function downloadFile(path: string, params: Params) {
   a.click();
   a.remove();
   window.setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/** CSV text from a header and rows (quotes values that need it). */
+export function toCsv(header: string[], rows: (string | number | null | undefined)[][]) {
+  const cell = (v: string | number | null | undefined) => {
+    if (v == null) return '';
+    const s = String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  return [header, ...rows].map((r) => r.map(cell).join(',')).join('\n') + '\n';
 }
 
 export const bboxParam = (b: Bbox) => b.map((v) => v.toFixed(2)).join(',');
