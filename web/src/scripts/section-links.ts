@@ -16,7 +16,8 @@ const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 function jumpTo(id: string): boolean {
   const target = document.getElementById(id);
   if (!target) return false;
-  target.scrollIntoView({ behavior: reduceMotion.matches ? 'auto' : 'smooth', block: 'start' });
+  document.dispatchEvent(new CustomEvent('section-jump', { detail: id }));
+  target.scrollIntoView({ behavior: reduceMotion.matches ? 'instant' : 'smooth', block: 'start' });
   if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
   target.focus({ preventScroll: true });
   return true;

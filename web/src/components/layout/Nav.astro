@@ -29,6 +29,7 @@ const sectionHref = (id: string) => (onHome ? `#${id}` : `${pages.home}#${id}`);
           ))
         }
       </ul>
+      <span class="nav-indicator" aria-hidden="true"></span>
     </div>
 
     <div class="nav-actions">
@@ -71,11 +72,31 @@ const sectionHref = (id: string) => (onHome ? `#${id}` : `${pages.home}#${id}`);
   }
 
   .nav-menu {
+    position: relative;
     flex: 1;
     display: flex;
     align-items: center;
     gap: var(--space-l);
     min-width: 0;
+  }
+
+  .nav-indicator {
+    position: absolute;
+    left: 0;
+    bottom: 0.45rem;
+    width: 0;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--color-ember);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--duration-fast) var(--ease-out);
+  }
+
+  @media (min-width: 68rem) {
+    .site-header.is-enhanced .nav-link[aria-current]::after {
+      display: none;
+    }
   }
 
   .nav-sections {
@@ -178,6 +199,10 @@ const sectionHref = (id: string) => (onHome ? `#${id}` : `${pages.home}#${id}`);
 
     .nav-sections {
       margin-inline: 0;
+    }
+
+    .nav-indicator {
+      display: none;
     }
 
     /* With JavaScript: a menu button and a dropdown panel */
@@ -320,8 +345,75 @@ const sectionHref = (id: string) => (onHome ? `#${id}` : `${pages.home}#${id}`);
 
     if (onHome) {
       let queued = false;
+      // After a nav click, keep the clicked link lit while the page slides there,
+      // instead of the highlight hopping across every link in between
+      // (src/scripts/section-links.ts). Released once scrolling has stopped.
+      let pinned = false;
+      let releaseTimer = 0;
+      const release = () => {
+        pinned = false;
+        queue();
+      };
+
+      const indicator = menu.querySelector<HTMLElement>('.nav-indicator');
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+      const DOT = 6;
+      let activeId: string | undefined;
+
+      const placeOf = (el: Element) => {
+        const box = menu.getBoundingClientRect();
+        const r = el.getBoundingClientRect();
+        return { x: r.left - box.left, w: r.width };
+      };
+      const frame = (x: number, w: number) => ({ transform: `translateX(${x}px)`, width: `${w}px` });
+
+      // Shrink while sliding, arrive as a dot at the near edge of the new link,
+      // then grow across it.
+      const moveIndicator = (animate: boolean) => {
+        if (!indicator) return;
+        const link = links.find((l) => l.dataset.section === activeId);
+        const from = placeOf(indicator);
+        const wasVisible = getComputedStyle(indicator).opacity !== '0';
+        indicator.getAnimations().forEach((a) => a.cancel());
+
+        if (!link) {
+          indicator.style.opacity = '0';
+          return;
+        }
+        const to = placeOf(link);
+        Object.assign(indicator.style, frame(to.x, to.w));
+        indicator.style.opacity = '1';
+        if (!animate || !wasVisible || !wide.matches || reduceMotion.matches) return;
+
+        const dotTo = to.x > from.x ? to.x : to.x + to.w - DOT;
+        indicator.animate(
+          [
+            { ...frame(from.x, from.w), easing: 'ease-in-out' },
+            { ...frame(dotTo, DOT), offset: 0.6, easing: 'ease-out' },
+            frame(to.x, to.w),
+          ],
+          { duration: 420 },
+        );
+      };
+
+      const setCurrent = (currentId: string | undefined) => {
+        for (const link of links) {
+          if (link.dataset.section === currentId) link.setAttribute('aria-current', 'location');
+          else link.removeAttribute('aria-current');
+        }
+        if (currentId !== activeId) {
+          activeId = currentId;
+          moveIndicator(true);
+        }
+      };
+
+      window.addEventListener('resize', () => moveIndicator(false));
+      wide.addEventListener('change', () => moveIndicator(false));
+      document.fonts?.ready.then(() => moveIndicator(false));
+
       const update = () => {
         queued = false;
+        if (pinned) return;
         // Highlight the last linked section whose top has passed a line a quarter of
         // the way down the screen. A section without a nav link (How it's built) keeps
         // the previous link lit, so Data story stays on through it.
@@ -331,11 +423,28 @@ const sectionHref = (id: string) => (onHome ? `#${id}` : `${pages.home}#${id}`);
           if (section.getBoundingClientRect().top > line) break;
           if (linkedIds.has(section.id)) currentId = section.id;
         }
-        for (const link of links) {
-          if (link.dataset.section === currentId) link.setAttribute('aria-current', 'location');
-          else link.removeAttribute('aria-current');
-        }
+        setCurrent(currentId);
       };
+
+      document.addEventListener('section-jump', (event) => {
+        const id = (event as CustomEvent<string>).detail;
+        if (!linkedIds.has(id)) return;
+        setCurrent(id);
+        pinned = true;
+        // Fallback in case the page doesn't scroll at all (already there)
+        clearTimeout(releaseTimer);
+        releaseTimer = window.setTimeout(release, 300);
+      });
+      
+      window.addEventListener(
+        'scroll',
+        () => {
+          if (!pinned) return;
+          clearTimeout(releaseTimer);
+          releaseTimer = window.setTimeout(release, 150);
+        },
+        { passive: true },
+      );
       const queue = () => {
         if (!queued) {
           queued = true;
