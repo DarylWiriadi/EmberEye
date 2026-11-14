@@ -10,7 +10,8 @@ import fireMap from '../../assets/fire-map.webp';
  *
  * The spots that pulse are the 12 busiest boxes, at least 15 degrees apart.
  * Positions are % of the map (x = longitude, y = latitude, 77.5N to 57.5S).
- * Regenerate the image and these together if the data changes.
+ * Regenerate the image and these together if the data changes
+ * (pipeline/hero_map/README.md).
  */
 const spots = [
   { x: 70.97, y: 34.93, place: 'Northern India (crop burning)' },
@@ -26,6 +27,10 @@ const spots = [
   { x: 81.81, y: 59.19, place: 'Borneo' },
   { x: 37.36, y: 61.4, place: 'Northern Brazil' },
 ];
+
+// Spots in the left half sit behind the hero text: they keep the pulsing ring
+// but have no bright core, so the text stays at 4.5:1 or better.
+const BEHIND_TEXT = 55; // % across
 ---
 
 <div class="hero-map" aria-hidden="true">
@@ -39,7 +44,14 @@ const spots = [
         loading="eager"
         class="hero-map-img"
       />
-      {spots.map((s, i) => <span class="spot" style={`--x: ${s.x}%; --y: ${s.y}%; --delay: ${(i * 0.73) % 4.5}s`} />)}
+      {
+        spots.map((s, i) => (
+          <span
+            class:list={['spot', { 'spot--behind-text': s.x < BEHIND_TEXT }]}
+            style={`--x: ${s.x}%; --y: ${s.y}%; --delay: ${(i * 0.73) % 4.5}s`}
+          />
+        ))
+      }
     </div>
   </div>
 </div>
@@ -106,6 +118,10 @@ const spots = [
     box-shadow:
       0 0 0.5rem 0.15rem color-mix(in srgb, var(--color-spark) 70%, transparent),
       0 0 1.5rem 0.4rem color-mix(in srgb, var(--color-ember) 45%, transparent);
+  }
+
+  .spot--behind-text::before {
+    display: none;
   }
 
   .spot::after {

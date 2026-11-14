@@ -73,15 +73,22 @@ const glows = [
     inset: 0;
     z-index: -1;
     pointer-events: none;
+    /* Glows fade out before the bottom edge, so none is cut off where the
+       story meets the fire transition */
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 40rem), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 40rem), transparent);
   }
 
-  /* Film grain over the whole story background */
-  .story-fx::after {
+  /* Film grain over the whole story background (the fire transition uses the
+     same texture, so it carries on without a seam) */
+  .story::after {
     content: '';
     position: absolute;
     inset: 0;
+    z-index: -1;
     background-image: var(--texture-grain);
     opacity: 0.05;
+    pointer-events: none;
   }
 
   .glow-track {

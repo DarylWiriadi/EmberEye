@@ -32,9 +32,11 @@
   --color-ember-hover: #ff9a4d;
   --color-on-ember: #1a0b00; /* text on ember buttons: 7.4:1 */
   --color-flame: #9c2414; /* fire transition red */
+  --color-flame-edge: #6e170d; /* darker red at the edges of the transition's glow */
   --color-on-flame: #fff7f0; /* text on flame: 7.4:1 */
   --color-on-flame-muted: #ffe1cc; /* secondary text on flame: 6.3:1 */
   --color-flame-ink: #3a0a04; /* dark text on light buttons over flame */
+  --color-spark: #ffc247; /* bright core of sparks and map hotspots. Decorative only */
 
   /* Fire transition circles. Decorative only: never put text on these */
   --color-fire-glow: #e8703a;
