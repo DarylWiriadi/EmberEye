@@ -147,3 +147,19 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Raw and in-between data
+pipeline/data/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Deploy / tools
+.vercel/
+api/duckdb_ext/
+
+# OS
+.DS_Store
+Thumbs.db
