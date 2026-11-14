@@ -45,7 +45,7 @@ const steps = [
       lede="Fire data travels from NASA satellites to your screen in four steps. The heavy processing happens ahead of time, so the site stays quick."
     />
 
-    <ol class="flow" role="list">
+    <ol class="flow" role="list" data-reveal-group>
       {
         steps.map((step, i) => (
           <li class:list={['step', `step--${step.tone}`]}>

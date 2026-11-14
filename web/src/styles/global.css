@@ -361,7 +361,10 @@ a {
 
 @media (hover: hover) {
   .card:has(.card-link) {
-    transition: border-color var(--duration-fast) var(--ease-out);
+    transition:
+      border-color var(--duration-fast) var(--ease-out),
+      transform var(--duration-base) var(--ease-out),
+      box-shadow var(--duration-base) var(--ease-out);
   }
 
   .card:has(.card-link:hover) {
@@ -371,6 +374,30 @@ a {
   .card-link:hover {
     color: inherit;
   }
+}
+
+/* Clickable cards lift slightly on hover (mouse/trackpad only, motion allowed) */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .card:has(.card-link:hover) {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-raised);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Scroll reveal                                                       */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Elements marked data-reveal, and the children of data-reveal-group, start
+ * invisible and slide in (src/scripts/reveal.ts). The js-reveal class is set
+ * by an inline script in the page head, so without JavaScript, or if the
+ * animation script fails, nothing is ever hidden. Only opacity is used (never
+ * visibility), so hidden content stays reachable by keyboard and screen readers.
+ */
+html.js-reveal [data-reveal],
+html.js-reveal [data-reveal-group] > * {
+  opacity: 0;
 }
 
 /* ------------------------------------------------------------------ */

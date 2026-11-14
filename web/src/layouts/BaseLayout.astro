@@ -8,9 +8,11 @@ interface Props {
   /** Page title, shown before the site name. Leave out on the home page. */
   title?: string;
   description?: string;
+  /** Page uses scroll-reveal animations (src/scripts/reveal.ts) */
+  reveal?: boolean;
 }
 
-const { title, description = site.description } = Astro.props;
+const { title, description = site.description, reveal = false } = Astro.props;
 const pageTitle = title ? `${title} | ${site.name}` : `${site.name}: ${site.tagline}`;
 ---
 
@@ -30,6 +32,21 @@ const pageTitle = title ? `${title} | ${site.name}` : `${site.name}: ${site.tagl
     <link rel="icon" type="image/png" href="/favicon.png" sizes="192x192" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="generator" content={Astro.generator} />
+    {
+      reveal && (
+        <script is:inline>
+          // Hide scroll-reveal content before first paint (no flash), then let the
+          // animation script reveal it. If that script hasn't started within 3 s,
+          // show everything instead.
+          document.documentElement.classList.add('js-reveal');
+          setTimeout(function () {
+            if (!document.documentElement.classList.contains('reveal-ready')) {
+              document.documentElement.classList.remove('js-reveal');
+            }
+          }, 3000);
+        </script>
+      )
+    }
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>

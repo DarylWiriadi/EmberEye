@@ -10,7 +10,7 @@ import Audience from '../components/home/Audience.astro';
 import FireTransition from '../components/home/FireTransition.astro';
 ---
 
-<BaseLayout>
+<BaseLayout reveal>
   <Hero />
   <Problem />
   <DataStory />
@@ -20,3 +20,7 @@ import FireTransition from '../components/home/FireTransition.astro';
   <Audience />
   <FireTransition />
 </BaseLayout>
+
+<script>
+  import '../scripts/reveal';
+</script>

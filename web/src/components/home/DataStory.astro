@@ -46,7 +46,7 @@ const milestones = [
       lede="Smaller pixels see smaller fires, so VIIRS reports many more hotspots than MODIS over the same ground. Raw counts from the two can’t be compared directly."
     />
 
-    <ol class="timeline" role="list">
+    <ol class="timeline" role="list" data-reveal-group>
       {
         milestones.map((m) => (
           <li class:list={['milestone', { 'milestone--current': m.current }]}>
