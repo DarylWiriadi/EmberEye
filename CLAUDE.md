@@ -85,6 +85,8 @@ nasa-space-apps-2026/
 │   ├── harmonize.py              Fire cell-days, overlap calibration
 │   ├── aggregate.py              Daily/monthly counts, medians, anomalies
 │   ├── clusters.py               Group hotspots into fire events (DBSCAN)
+│   ├── weather.py                MERRA-2 monthly weather + soil → weather_res3
+│   ├── gfwed.py                  GFWED monthly FWI → `fwi` column in weather_res3
 │   ├── risk.py                   FWI + dryness + climatology → risk tiles
 │   ├── sim_inputs.py             Fuel, slope, water rasters for demo regions
 │   ├── towns.py                  Pre-baked town lists for demo regions
@@ -287,7 +289,7 @@ Rules:
 - Vercel sets `AWS_REGION` (e.g. `ap-southeast-2`); the DuckDB R2 secret sets `REGION 'auto'` so R2 doesn't reject it. `/api/health` shows the R2 status and the last R2 error (keys masked).
 - **H3 in the API**: the API uses the `h3` Python package (cell conversion only); it does **not** need the DuckDB `h3` extension, so there is no build step and nothing is downloaded at runtime. The pipeline precomputes every H3 index the API needs (e.g. `global/cells_res5.parquet` has each cell's res 3 parent and centre lat/lng). The DuckDB `h3` extension is used only by the offline pipeline.
 - **Read-only filesystem**: open DuckDB in memory, read Parquet files by path, and set `temp_directory` to `/tmp`.
-- **Limits to respect**: a **Python function bundle is limited to 225 MB** (measured on a real deploy: the build fails with `LAMBDA_SIZE_EXCEEDED`). Measured on a failed deploy: Python packages ~28 MB, and **everything under `api/` is bundled** (neither `.vercelignore` nor `excludeFiles` kept files out). So never put files the API doesn't read in `api/`. Currently ~219 MB: global counts ~127 MB, weather 11 MB, httpfs 27 MB, SE Australia fallback points 20 MB, land cover 1.4 MB, packages ~28 MB. Climatology and calibration ratios live in `pipeline/` instead. Individual hotspot points live in Cloudflare R2. Responses ≤ 4.5 MB unless streamed, so **stream CSV exports** and keep `/hotspots` responses small (bbox + date, with a cap).
+- **Limits to respect**: a **Python function bundle is limited to 225 MB** (measured on a real deploy: the build fails with `LAMBDA_SIZE_EXCEEDED`). Measured on a failed deploy: Python packages ~28 MB, and **everything under `api/` is bundled** (neither `.vercelignore` nor `excludeFiles` kept files out). So never put files the API doesn't read in `api/`. Currently ~221 MB (only ~4 MB spare): global counts ~127 MB, weather + GFWED FWI 13 MB, httpfs 27 MB, SE Australia fallback points 20 MB, land cover 1.4 MB, packages ~28 MB. Climatology and calibration ratios live in `pipeline/` instead. Individual hotspot points live in Cloudflare R2. Responses ≤ 4.5 MB unless streamed, so **stream CSV exports** and keep `/hotspots` responses small (bbox + date, with a cap).
 - **Static files** (`static/`): mount with FastAPI `StaticFiles` so Vercel serves them from its CDN.
 - **Cold starts**: the first request after idle loads Python + DuckDB. Warm the site up before presenting.
 

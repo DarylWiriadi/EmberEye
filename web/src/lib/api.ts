@@ -5,22 +5,74 @@ const BASE = import.meta.env.PUBLIC_API_URL ?? '';
 
 type Params = Record<string, string | number | undefined>;
 
-async function getJson<T>(path: string, params: Params = {}, signal?: AbortSignal): Promise<T> {
+function apiUrl(path: string, params: Params) {
   const url = new URL(`${BASE}/api${path}`, window.location.origin);
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined) url.searchParams.set(k, String(v));
   }
-  const res = await fetch(url, { signal });
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.detail ?? `Request failed (${res.status})`);
-  }
+  return url;
+}
+
+async function failure(res: Response): Promise<Error> {
+  const body = await res.json().catch(() => null);
+  return new Error(body?.detail ?? `Request failed (${res.status})`);
+}
+
+async function getJson<T>(path: string, params: Params = {}, signal?: AbortSignal): Promise<T> {
+  const res = await fetch(apiUrl(path, params), { signal });
+  if (!res.ok) throw await failure(res);
   return res.json() as Promise<T>;
+}
+
+/**
+ * Starts a browser download of a streamed, possibly very large file: it saves
+ * straight to disk with the browser's own progress bar. Resolves once the server
+ * has started sending it (it echoes `token` back in a cookie), or after a timeout.
+ */
+export function startDownload(path: string, params: Params, timeoutMs = 120_000): Promise<void> {
+  const token = Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
+  const a = document.createElement('a');
+  a.href = apiUrl(path, { ...params, token }).toString();
+  a.download = '';
+  document.body.append(a);
+  a.click();
+  a.remove();
+  return new Promise((resolve) => {
+    const t0 = Date.now();
+    const id = window.setInterval(() => {
+      if (document.cookie.includes(`embereye_download=${token}`) || Date.now() - t0 > timeoutMs) {
+        window.clearInterval(id);
+        document.cookie = 'embereye_download=; Path=/; Max-Age=0';
+        resolve();
+      }
+    }, 250);
+  });
+}
+
+/** Fetches a file from the API and saves it under the name the API gives it.
+ *  Errors (e.g. too many hotspots) are thrown with the API's message instead of
+ *  being saved as a file. */
+export async function downloadFile(path: string, params: Params) {
+  const res = await fetch(apiUrl(path, params));
+  if (!res.ok) throw await failure(res);
+  const blob = await res.blob();
+  const name = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ?? 'embereye.csv';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 export const bboxParam = (b: Bbox) => b.map((v) => v.toFixed(2)).join(',');
 
 const WORLD: Bbox = [-180, -85, 180, 85];
+
+/** The cache key of the whole-world points for a date range (as useHotspots uses). */
+export const worldHotspotsKey = (range: DateRange, limit = 50_000) =>
+  ['hotspots', bboxParam(WORLD), range.start, range.end, limit] as const;
 
 /**
  * The area to fetch for a map view: bigger than what's visible and snapped to a
@@ -83,11 +135,17 @@ const contains = (outer: string, inner: string) => {
   return ow <= iw && os <= is && oe >= ie && on >= inn;
 };
 
+const sizeOf = (bbox: string) => {
+  const [w, s, e, n] = bbox.split(',').map(Number);
+  return (e - w) * (n - s);
+};
+
 /**
  * While a new view loads, show what's already there: the previous data if it
  * covers the new view (zooming in, small pans), else the whole-world data for
- * the same dates if it was loaded before (zooming out). `keepAnyPrevious` falls
- * back to the previous data even if it covers less.
+ * the same dates if it was loaded before. `keepAnyPrevious` also keeps the
+ * previous data when panning, but never when zooming out (it would leave the
+ * zoomed-in detail in one small patch).
  */
 export function useHotspots(
   bbox: Bbox | null,
@@ -102,13 +160,32 @@ export function useHotspots(
     placeholderData: (prev, prevQuery) => {
       const prevBbox = prevQuery?.queryKey[1] as string | undefined;
       if (prev && prevBbox && b && contains(prevBbox, b)) return prev;
-      const world = qc.getQueryData<HotspotsResponse>(['hotspots', bboxParam(WORLD), range?.start, range?.end, limit]);
-      return world ?? (keepAnyPrevious ? prev : undefined);
+      const world = range ? qc.getQueryData<HotspotsResponse>(worldHotspotsKey(range, limit)) : undefined;
+      const zoomingOut = !!prevBbox && !!b && sizeOf(b) > 1.5 * sizeOf(prevBbox);
+      return world ?? (keepAnyPrevious && !zoomingOut ? prev : undefined);
     },
     // The signal cancels the request once it's no longer wanted (dates or view changed).
     queryFn: ({ signal }) => getJson<HotspotsResponse>('/hotspots', { bbox: b, limit, ...range }, signal),
     enabled: enabled && !!bbox && !!range,
     staleTime: 10 * 60_000,
+  });
+}
+
+export interface ExportEstimate {
+  hotspots: number;
+  /** false: estimated from a sample (big searches). */
+  exact: boolean;
+  bytes: number;
+}
+
+export function useExportEstimate(bbox: Bbox | null, range: DateRange | null, enabled: boolean) {
+  const b = bbox ? bboxParam(bbox) : '';
+  return useQuery({
+    queryKey: ['export-estimate', b, range?.start, range?.end],
+    queryFn: ({ signal }) => getJson<ExportEstimate>('/export-estimate', { bbox: b, ...range }, signal),
+    enabled: enabled && !!bbox && !!range,
+    staleTime: 10 * 60_000,
+    retry: false,
   });
 }
 

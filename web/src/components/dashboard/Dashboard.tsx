@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useHealth } from '../../lib/api';
 import { useAppStore } from '../../store/useAppStore';
 import MapView from './map/MapView';
+import DownloadMenu from './downloads/DownloadMenu';
 import DateRangeInputs from './timeline/DateRangeInputs';
 import TimeSlider from './timeline/TimeSlider';
 import './Dashboard.css';
@@ -34,7 +35,10 @@ function DashboardShell() {
       <div className="dash-screen">
         <section className="dash-map" aria-label="Map">
           <MapView />
-          <div className="dash-area-tools dash-slot">Area tools</div>
+          <div className="dash-area-tools">
+            <div className="dash-slot">Area tools</div>
+            <DownloadMenu />
+          </div>
 
           <aside id="dash-side" className="dash-side" data-open={sideOpen} aria-label="Risk and featured fires">
             <button
