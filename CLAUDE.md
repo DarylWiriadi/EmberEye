@@ -208,10 +208,9 @@ Raw downloads stay out of git (many GB). Only the smaller Parquet outputs go int
 
 1. **Download** the FIRMS archives (global) from the FIRMS Archive Download tool (https://firms.modaps.eosdis.nasa.gov/download/, needs a free Earthdata Login). Prefer **Standard Processing (SP)** data for history; use **NRT** only for the most recent weeks not yet in SP. Recent days can also come from the FIRMS API (free MAP_KEY).
    - Archive start dates (from the download form): MODIS Terra from 1 Nov 2000, MODIS Aqua from 4 Jul 2002, VIIRS S-NPP 20 Jan 2012 – 2 Nov 2026, VIIRS NOAA-20 from 1 Apr 2018, NOAA-21 from 1 Mar 2023. The archive covers data older than 7 days.
-   - **Australia** (done): one archive request with MODIS + VIIRS S-NPP + VIIRS NOAA-20 ticked (not LANDSAT; it's US/Canada only), 2000-11-01 → latest. Each source arrives as its own file(s), usually an `archive` (SP) and an `nrt` file. Stored in `pipeline/data/raw/australia/`.
    - **World** is split between the website and the API, because the archive form allows **max one year per request** for areas over half the globe, and each world API call costs **~180 transactions** against a limit of **5,000 per 10 minutes** (~26 calls per 10 min):
      - **VIIRS S-NPP, 2012-01-20 → 2026-11-02** (done): website archive, **one request per year** (World, S-NPP only, CSV). Stored in `pipeline/data/raw/world/VIIRS_SNPP_archive/`.
-     - **MODIS, 2002-07-04 → 2019-12-31** and **VIIRS NOAA-20, all of 2024 (calibration year) + 2026-11-03 → latest**: the **FIRMS Area API** via `pipeline/download.py` (currently `firms_download.py`). ~1,355 calls, ~9 hours, run overnight.
+     - **MODIS, 2002-07-04 → 2019-12-31** and **VIIRS NOAA-20, all of 2024 (calibration year) + 2026-11-03 → latest**: the **FIRMS Area API** via `pipeline/download.py`. ~1,355 calls, ~9 hours, run overnight.
    - **API details** (as tested):
      - `https://firms.modaps.eosdis.nasa.gov/api/area/csv/{MAP_KEY}/{SOURCE}/-180,-90,180,90/{DAY_RANGE}/{YYYY-MM-DD}`. Free MAP_KEY in the env var `FIRMS_MAP_KEY`; never commit it.
      - **`DAY_RANGE` is 1–5** (the API rejects larger values, despite older docs saying 10). The script uses 5-day chunks.
@@ -223,7 +222,7 @@ Raw downloads stay out of git (many GB). Only the smaller Parquet outputs go int
    - The **last 7 days** aren't in the archive; they come from the API (`*_NRT`).
    - Backup routes: the download page's yearly country files, or the original monthly global science files (MODIS MCD14ML, VIIRS VNP14IMGML) from the University of Maryland SFTP server.
    - Archive requests (CSV) are processed in the background and a download link is emailed. FIRMS delivers separate files per source (and often SP vs NRT).
-   - Quick start: the same page offers **yearly summaries by country as direct CSV downloads** (no request). Use Australia's files to build and test the pipeline while global requests process.
+   - Quick start: the same page offers **yearly summaries by country as direct CSV downloads** (no request). Handy for quick pipeline tests while global requests process.
    - NRT data is replaced by science-quality SP data with a ~5-month lag, so the most recent months are NRT. Note this on the methodology page.
 2. **Clean**:
    - Keep FIRMS `type = 0` (presumed vegetation fire, includes agricultural burns). Drop volcanoes (1), static land sources like gas flares (2) and offshore (3). (Sample check: ~95% of MODIS rows are `type 0`.)
