@@ -39,6 +39,7 @@ _lock = threading.Lock()
 R2_BUCKET = os.environ.get("R2_BUCKET", "")
 r2_enabled = False          # set by _connect()
 r2_status = "not started"   # shown by /health (never includes secrets)
+r2_last_error = None        # last failed R2 read, shown by /health (account id masked)
 manifest: dict = {}         # points_manifest.json (which R2 files exist)
 regions: dict = {}          # data/regions/regions.json
 
@@ -80,7 +81,10 @@ def _connect() -> duckdb.DuckDBPyConnection:
     global r2_enabled, manifest, regions
     con = duckdb.connect()
     # Vercel's filesystem is read-only except /tmp.
-    con.execute(f"SET temp_directory = '{Path(tempfile.gettempdir()).as_posix()}'")
+    tmp = Path(tempfile.gettempdir()).as_posix()
+    con.execute(f"SET temp_directory = '{tmp}'")
+    # Serverless functions have no writable home folder; httpfs/secrets may need one.
+    con.execute(f"SET home_directory = '{tmp}'")
     con.execute("SET memory_limit = '1GB'")
     con.execute(f"SET extension_directory = '{EXT_DIR.as_posix()}'")
     con.execute("SET autoinstall_known_extensions = false")
@@ -117,3 +121,14 @@ def coverage(cur) -> tuple:
 def points_coverage() -> tuple[date, date]:
     """(first date, last date) of the individual hotspot archive."""
     return date.fromisoformat(manifest["first"]), date.fromisoformat(manifest["last"])
+
+
+def record_r2_error(e: Exception) -> None:
+    """Remember the last R2 read failure for /health, without secrets."""
+    global r2_last_error
+    msg = f"{type(e).__name__}: {e}"
+    for k in ("R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"):
+        v = os.environ.get(k)
+        if v:
+            msg = msg.replace(v, f"<{k}>")
+    r2_last_error = msg[:500]

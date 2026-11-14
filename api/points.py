@@ -90,7 +90,8 @@ def run(cur, bbox, cells, start, end, fn):
     except duckdb.Error as e:
         if src.source != "r2":
             raise
-        db.log.warning("R2 read failed (%s); falling back to demo regions", e)
+        db.record_r2_error(e)
+        db.log.warning("R2 read failed (%s); falling back to demo regions", db.r2_last_error)
         src = build(cur, bbox, cells, start, end, use_r2=False)
         return src, fn(src)
 
