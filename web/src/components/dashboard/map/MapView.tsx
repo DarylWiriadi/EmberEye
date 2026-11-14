@@ -349,6 +349,27 @@ export default function MapView() {
 
   // Area selection: drag a rectangle while the tool is on; the picked area is outlined.
   const mapRef = useRef<MapRef>(null);
+
+  // Browser zoom (Ctrl/Cmd +/-) changes the device pixel ratio; zoom the map the
+  // other way so it keeps showing the same part of the world.
+  useEffect(() => {
+    let dpr = window.devicePixelRatio;
+    let query: MediaQueryList;
+    const onChange = () => {
+      const next = window.devicePixelRatio;
+      const map = mapRef.current;
+      if (map && next !== dpr) map.setZoom(map.getZoom() - Math.log2(next / dpr));
+      dpr = next;
+      watch();
+    };
+    const watch = () => {
+      query?.removeEventListener('change', onChange);
+      query = window.matchMedia(`(resolution: ${dpr}dppx)`);
+      query.addEventListener('change', onChange);
+    };
+    watch();
+    return () => query.removeEventListener('change', onChange);
+  }, []);
   const selectedArea = useAppStore((s) => s.area);
   const areaTool = useAppStore((s) => s.areaTool);
   const setArea = useAppStore((s) => s.setArea);
@@ -437,6 +458,10 @@ export default function MapView() {
     <div className="map-wrap">
       <Map
         ref={mapRef}
+        dragRotate={false}
+        pitchWithRotate={false}
+        touchPitch={false}
+        maxPitch={0}
         dragPan={!drawing}
         cursor={drawing ? 'crosshair' : undefined}
         onMouseDown={onDrawStart}
@@ -451,7 +476,12 @@ export default function MapView() {
         maxZoom={12}
         renderWorldCopies={false}
         attributionControl={false}
-        onLoad={publishView}
+        onLoad={(e) => {
+          // Two-finger twist on touchscreens would rotate the map; north stays up.
+          e.target.touchZoomRotate.disableRotation();
+          e.target.keyboard.disableRotation();
+          publishView(e);
+        }}
         onMoveEnd={publishView}
         onMove={(e) => setZoomNow((z) => (Math.abs(z - e.viewState.zoom) >= 0.1 ? e.viewState.zoom : z))}
       >
