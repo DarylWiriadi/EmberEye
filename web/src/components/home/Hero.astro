@@ -4,9 +4,18 @@ import { pages, site } from '../../lib/site';
 ---
 
 <!--
-  Poster-style hero. Designed at 1440px wide and scaled from one font-size on
-  .hero, so everything inside is sized in em. Below 768px it stacks instead.
-  The rem values inside max() are deliberate floors (14px text, 44px buttons).
+  Poster-style hero, designed at 1440px wide. Everything inside (text, spacing,
+  the visual) is sized in em of .hero, so it scales as one piece and the
+  arrangement never changes.
+  - The scale follows the window's width AND height, whichever is tighter, so the
+    whole hero always fits in the first screen: at any zoom level (e.g. Windows'
+    common 125% scaling) and on short or wide screens.
+  - The hero is at least one screen tall, so the next section never peeks in
+    when zoomed out.
+  - It only stacks on real phones (touch screens under 768px wide), or when the
+    window is under 480px (e.g. extreme zoom), where two columns can't fit.
+  The rem values inside max() are deliberate floors (14px text, 44px buttons),
+  so text still grows when someone zooms in to read.
 -->
 <section class="hero" aria-labelledby="hero-title">
   <div class="hero-inner">
@@ -36,8 +45,24 @@ import { pages, site } from '../../lib/site';
 
 <style>
   .hero {
-    font-size: clamp(0.625rem, 1.1111vw, 1.25rem); /* 16px at 1440px; 10px to 20px */
+    /*
+     * One scale for the whole hero (16px on a 1440px-wide screen), the smallest of:
+     *   - the width fit: 1440px wide -> 16px
+     *   - the height fit: the hero content is about 40em tall (the square visual
+     *     plus padding), so the space below the nav divided by 42 keeps it on screen
+     *   - a cap of 20px for very large screens
+     */
+    --hero-scale: min(1.1111vw, calc((100svh - var(--nav-height)) / 42), 1.25rem);
+    /* Text follows the same scale (its em resolves against the hero scale). */
+    --hero-text: 1em;
+    font-size: var(--hero-scale);
     overflow: hidden;
+    /* Always fill the first screen (below the sticky nav), at any zoom level,
+       so the next section never peeks in. Content is centred vertically.
+       svh = the screen height with mobile browser bars showing (no jumping). */
+    min-height: calc(100svh - var(--nav-height));
+    display: grid;
+    align-items: center;
   }
 
   .hero-inner {
@@ -45,9 +70,11 @@ import { pages, site } from '../../lib/site';
     grid-template-columns: 1.1fr 0.9fr;
     align-items: center;
     gap: 5em;
+    width: 100%;
     max-width: 90em;
     margin-inline: auto;
-    padding: 6em 5em 7em;
+    /* Vertical centring (on .hero) provides the space above and below. */
+    padding: 3em 5em;
   }
 
   /* gap (not margins) so spacing follows the hero scale, not each child's font size */
@@ -64,7 +91,7 @@ import { pages, site } from '../../lib/site';
 
   .hero-eyebrow {
     font-family: var(--font-mono);
-    font-size: max(0.875rem, 0.875em);
+    font-size: max(0.875rem, calc(0.875 * var(--hero-text)));
     font-weight: 500;
     letter-spacing: var(--tracking-wide);
     text-transform: uppercase;
@@ -72,14 +99,14 @@ import { pages, site } from '../../lib/site';
   }
 
   .hero-title {
-    font-size: 4.75em;
+    font-size: calc(4.75 * var(--hero-text));
     line-height: 1.02;
     letter-spacing: -0.03em;
   }
 
   .hero-subtitle {
     max-width: 32em;
-    font-size: max(0.875rem, 1.3125em);
+    font-size: max(0.875rem, calc(1.3125 * var(--hero-text)));
     line-height: 1.55;
     color: var(--color-text-muted);
   }
@@ -91,7 +118,7 @@ import { pages, site } from '../../lib/site';
   }
 
   .hero-btn {
-    font-size: max(0.9375rem, 1.0625em);
+    font-size: max(0.9375rem, calc(1.0625 * var(--hero-text)));
     min-height: max(2.75rem, 3.25em);
     padding-inline: 1.5em;
   }
@@ -110,13 +137,16 @@ import { pages, site } from '../../lib/site';
 
   .hero-visual-label {
     font-family: var(--font-mono);
-    font-size: max(0.875rem, 0.875em);
+    font-size: max(0.875rem, calc(0.875 * var(--hero-text)));
     color: var(--color-text-subtle);
   }
 
-  /* Phones: drop the poster layout and stack text above the visual */
-  @media (max-width: 47.99rem) {
+  /* Phones (touch screens under 768px), or any window under 480px: drop the
+     poster layout and stack text above the visual. Desktop zoom alone doesn't
+     trigger this until two columns genuinely can't fit. */
+  @media (max-width: 47.99rem) and (hover: none) and (pointer: coarse), (max-width: 29.99rem) {
     .hero {
+      --hero-text: 1rem;
       font-size: 1rem;
     }
 

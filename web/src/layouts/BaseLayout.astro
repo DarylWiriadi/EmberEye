@@ -55,11 +55,20 @@ const pageTitle = title ? `${title} | ${site.name}` : `${site.name}: ${site.tagl
       <slot />
     </main>
     <Footer />
+    <script>
+      import '../scripts/section-links';
+    </script>
   </body>
 </html>
 
 <style>
   main:focus {
+    outline: none;
+  }
+
+  /* Sections receive focus after a section-link jump (src/scripts/section-links.ts);
+     a focus ring around a whole section isn't useful. */
+  main :global(section[id]:focus) {
     outline: none;
   }
 </style>

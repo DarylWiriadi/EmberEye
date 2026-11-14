@@ -11,8 +11,9 @@ const year = 2026;
     <div class="footer-brand">
       <Brand />
       <p class="muted">{site.tagline}.</p>
-      <!-- Placeholder: team name and members -->
-      <p class="muted">Built by [team name] for the NASA Space Apps Challenge {year}.</p>
+      <p class="muted">
+        Built by {site.team.join(' and ')} for the NASA Space Apps Challenge {year}.
+      </p>
     </div>
 
     <nav class="footer-links" aria-label="Footer">

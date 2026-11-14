@@ -239,6 +239,35 @@ const sectionHref = (id: string) => (onHome ? `#${id}` : `${pages.home}#${id}`);
       height: auto;
     }
   }
+
+  /*
+   * Small phones. The bar holds the logo + name (~126px), the Dashboard button
+   * (~120px) and the menu button (44px), none of which shrink. With the normal
+   * gaps that needs ~330px, more than fits inside the margins below ~384px, and
+   * the overflow made the whole page scroll sideways.
+   */
+  @media (max-width: 23.99rem) {
+    .nav {
+      column-gap: var(--space-s);
+    }
+
+    .nav-actions {
+      gap: var(--space-2xs);
+    }
+  }
+
+  /* Below 360px (e.g. 320px phones): logo only. The name stays available to
+     screen readers, and the logo still links home. */
+  @media (max-width: 22.49rem) {
+    .nav-brand :global(.brand span) {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
 </style>
 
 <script>
