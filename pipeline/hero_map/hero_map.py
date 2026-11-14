@@ -1,12 +1,16 @@
-"""Home page hero map: land dots + total harmonized fire activity, as one image.
+"""Home page hero map: land dots + total harmonized fire activity, as two layers.
 
 Reads the global monthly counts the API serves (api/data/global), adds up the
-fire cell-days per 1-degree box over the whole record, and draws:
-  - a grey dot for every land box (land-1deg.txt, built by land.mjs)
-  - an ember dot for every box above the median (~2,000 fire cell-days), sized
-    and coloured on a log scale, with a soft glow on the busiest ones
-Writes web/src/assets/fire-map.webp (2880 x 1088) and prints the 12 busiest
-boxes (at least 15 degrees apart) as the pulsing spots for HeroMap.astro.
+fire cell-days per 1-degree box over the whole record, and draws two
+transparent images of the same size (2880 x 1088), stacked on the page so the
+fire can light up over the land when the page loads:
+  - web/src/assets/land-map.webp: a grey dot for every land box
+    (land-1deg.txt, built by land.mjs)
+  - web/src/assets/fire-map.webp: an ember dot for every box above the median
+    (~2,000 fire cell-days), sized and coloured on a log scale, with a soft
+    glow on the busiest ones
+Also prints the 12 busiest boxes (at least 15 degrees apart) as the pulsing
+spots for HeroMap.astro.
 
 Usage (from pipeline/, after the global Parquet files exist):
     pip install pillow
@@ -25,7 +29,9 @@ from PIL import Image, ImageDraw, ImageFilter
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 GLOBAL = REPO / "api" / "data" / "global"
-OUT_WEBP = REPO / "web" / "src" / "assets" / "fire-map.webp"
+ASSETS = REPO / "web" / "src" / "assets"
+OUT_LAND = ASSETS / "land-map.webp"
+OUT_FIRE = ASSETS / "fire-map.webp"
 LAND = HERE / "land-1deg.txt"
 
 TOP_LAT = 77.5          # centre of the first row in land-1deg.txt
@@ -62,7 +68,7 @@ def ramp(t):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--preview", type=Path, help="also save a PNG copy here")
+    parser.add_argument("--preview", type=Path, help="also save both layers combined as a PNG here")
     args = parser.parse_args()
 
     land = LAND.read_text().split("\n")
@@ -80,30 +86,34 @@ def main():
     def strength(v):
         return max(0.0, min(1.0, (math.log10(v) - lo) / (hi - lo))) if v > 0 else 0.0
 
-    base = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    land_img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    dots = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     glow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    draw_base, draw_glow = ImageDraw.Draw(base), ImageDraw.Draw(glow)
+    draw_land, draw_dots, draw_glow = ImageDraw.Draw(land_img), ImageDraw.Draw(dots), ImageDraw.Draw(glow)
     for r in range(rows_n):
         for c in range(cols_n):
             cx, cy = c * CELL_PX + CELL_PX / 2, r * CELL_PX + CELL_PX / 2
             t = strength(fd.get((r, c), 0))
             if t > 0.05:
                 rad, col = 1.7 + 1.6 * t, ramp(t)
-                draw_base.ellipse([cx - rad, cy - rad, cx + rad, cy + rad], fill=col + (round(150 + 105 * t),))
+                draw_dots.ellipse([cx - rad, cy - rad, cx + rad, cy + rad], fill=col + (round(150 + 105 * t),))
                 if t > 0.55:
                     gr = 4 + 8 * t
                     draw_glow.ellipse([cx - gr, cy - gr, cx + gr, cy + gr], fill=col + (round(70 * t),))
-            elif land[r][c] == "1":
-                draw_base.ellipse([cx - 1.6, cy - 1.6, cx + 1.6, cy + 1.6], fill=(84, 98, 118, 150))
-    image = Image.alpha_composite(glow.filter(ImageFilter.GaussianBlur(9)), base)
+            # Every land box gets a land dot, also under fire dots, so the world
+            # is complete before the fire layer lights up
+            if land[r][c] == "1":
+                draw_land.ellipse([cx - 1.6, cy - 1.6, cx + 1.6, cy + 1.6], fill=(84, 98, 118, 150))
+    fire_img = Image.alpha_composite(glow.filter(ImageFilter.GaussianBlur(9)), dots)
 
     if args.preview:
-        image.save(args.preview, optimize=True)
-    buffer = io.BytesIO()
-    image.save(buffer, "WEBP", quality=WEBP_QUALITY, method=6)
-    OUT_WEBP.write_bytes(buffer.getvalue())
-    print(f"{OUT_WEBP.relative_to(REPO)}: {width} x {height}, {len(buffer.getvalue()) / 1024:.0f} KB, "
-          f"record {span[0]} to {span[1]}")
+        Image.alpha_composite(land_img, fire_img).save(args.preview, optimize=True)
+    for path, image in ((OUT_LAND, land_img), (OUT_FIRE, fire_img)):
+        buffer = io.BytesIO()
+        image.save(buffer, "WEBP", quality=WEBP_QUALITY, method=6)
+        path.write_bytes(buffer.getvalue())
+        print(f"{path.relative_to(REPO)}: {width} x {height}, {len(buffer.getvalue()) / 1024:.0f} KB")
+    print(f"record {span[0]} to {span[1]}")
 
     # Pulsing spots: busiest boxes, at least SPOT_MIN_DEGREES apart
     picked = []
