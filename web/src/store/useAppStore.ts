@@ -29,6 +29,9 @@ interface AppState {
   /** 'rectangle' while the user is drawing one on the map. */
   areaTool: 'none' | 'rectangle';
   setArea: (area: SelectedArea | null) => void;
+  /** The map is flying to a picked area: the old view's data isn't fetched meanwhile. */
+  flying: boolean;
+  setFlying: (flying: boolean) => void;
   setAreaTool: (tool: 'none' | 'rectangle') => void;
   /** Moves the slider to a day; outside the date range, the range becomes that day's month. */
   jumpToDate: (iso: string, bounds?: DateRange) => void;
@@ -69,7 +72,9 @@ export const useAppStore = create<AppState>()((set, get) => ({
   unfreeze: () => set({ frozen: false }),
   area: null,
   areaTool: 'none',
-  setArea: (area) => set({ area, areaTool: 'none' }),
+  setArea: (area) => set({ area, areaTool: 'none', flying: !!area && area.source !== 'rectangle' }),
+  flying: false,
+  setFlying: (flying) => set({ flying }),
   setAreaTool: (areaTool) => set({ areaTool }),
   jumpToDate: (iso, bounds) => {
     let range = get().dateRange;

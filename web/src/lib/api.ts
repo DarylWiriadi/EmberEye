@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import type { Bbox, DateRange } from '../types';
 
 const BASE = import.meta.env.PUBLIC_API_URL ?? '';
@@ -181,6 +181,17 @@ export function useHotspots(
     // The signal cancels the request once it's no longer wanted (dates or view changed).
     queryFn: ({ signal }) => getJson<HotspotsResponse>('/hotspots', { bbox: b, limit, ...range }, signal),
     enabled: enabled && !!bbox && !!range,
+    staleTime: 10 * 60_000,
+  });
+}
+
+/** Starts loading the dots for a view the map is about to show (e.g. while it
+ *  flies there), into the same cache useHotspots reads. */
+export function prefetchHotspots(qc: QueryClient, bbox: Bbox, range: DateRange, limit = 50_000) {
+  const b = bboxParam(bbox);
+  return qc.prefetchQuery({
+    queryKey: ['hotspots', b, range.start, range.end, limit],
+    queryFn: ({ signal }) => getJson<HotspotsResponse>('/hotspots', { bbox: b, limit, ...range }, signal),
     staleTime: 10 * 60_000,
   });
 }
