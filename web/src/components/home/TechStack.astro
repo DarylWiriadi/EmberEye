@@ -1,0 +1,232 @@
+---
+import { Icon } from 'astro-icon/components';
+import SectionHeader from './SectionHeader.astro';
+
+// How data gets from the satellites to the screen. Kept general on purpose.
+// tone: 'cool' for the data side, 'warm' for what people see.
+const steps = [
+  {
+    icon: 'lucide:satellite',
+    title: 'Satellites',
+    text: 'MODIS and VIIRS spot fire hotspots from orbit, every day.',
+    tag: 'NASA data',
+    tone: 'cool',
+  },
+  {
+    icon: 'lucide:workflow',
+    title: 'Harmonize',
+    text: 'We clean the data and put both sensors on one consistent scale.',
+    tag: 'Python',
+    tone: 'cool',
+  },
+  {
+    icon: 'lucide:database',
+    title: 'Store and serve',
+    text: 'Ready-made summaries are kept in compact files and served by a small API.',
+    tag: 'API + database',
+    tone: 'warm',
+  },
+  {
+    icon: 'lucide:monitor',
+    title: 'Explore',
+    text: 'You see it all on the map, calendar and charts, right in your browser.',
+    tag: 'Web app',
+    tone: 'warm',
+  },
+];
+---
+
+<section id="stack" class="section section--raised" aria-labelledby="stack-title">
+  <div class="container">
+    <SectionHeader
+      eyebrow="How it’s built"
+      title="From satellite to screen"
+      headingId="stack-title"
+      lede="Fire data travels from NASA satellites to your screen in four steps. The heavy processing happens ahead of time, so the site stays quick."
+    />
+
+    <ol class="flow" role="list" data-reveal-group>
+      {
+        steps.map((step, i) => (
+          <li class:list={['step', `step--${step.tone}`]}>
+            <span class="node">
+              <Icon name={step.icon} aria-hidden="true" />
+            </span>
+            <div class="step-body">
+              <p class="step-tag">{step.tag}</p>
+              <h3 class="step-title">{step.title}</h3>
+              <p class="step-text">{step.text}</p>
+            </div>
+            {i < steps.length - 1 && <span class="link" aria-hidden="true" />}
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</section>
+
+<style>
+  .flow {
+    --node: 4rem;
+    --link-gap: 0.75rem; /* space between a node and its connecting line */
+    --dash: 6px;
+    --dash-period: 14px;
+    display: grid;
+  }
+
+  .step {
+    --tone: var(--color-sky);
+    position: relative;
+  }
+
+  .step--warm {
+    --tone: var(--color-ember);
+  }
+
+  /* Icon in a circle */
+  .node {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: var(--node);
+    height: var(--node);
+    border: 1px solid color-mix(in srgb, var(--tone) 55%, transparent);
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--tone) 12%, var(--color-surface));
+    box-shadow: 0 0 0 0.4rem color-mix(in srgb, var(--tone) 7%, transparent);
+    color: var(--tone);
+  }
+
+  .node :global(svg) {
+    width: 1.6rem;
+    height: 1.6rem;
+  }
+
+  .step-tag {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--tone);
+  }
+
+  .step-title {
+    margin-top: var(--space-3xs);
+    font-size: var(--text-xl);
+  }
+
+  .step-text {
+    margin-top: var(--space-2xs);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  /* Dashed connecting line with dashes drifting along it */
+  .link {
+    position: absolute;
+    background-repeat: repeat;
+    animation: flow-x 1.4s linear infinite;
+  }
+
+  /* Arrowhead at the end of each line */
+  .link::after {
+    content: '';
+    position: absolute;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-top: 2px solid var(--tone);
+    border-right: 2px solid var(--tone);
+  }
+
+  /* ---------- Phones: vertical flow, line down the left ---------- */
+
+  .step {
+    display: grid;
+    grid-template-columns: var(--node) 1fr;
+    column-gap: var(--space-m);
+    padding-bottom: var(--space-xl);
+  }
+
+  .step:last-child {
+    padding-bottom: 0;
+  }
+
+  .step-body {
+    padding-top: 0.6rem;
+  }
+
+  .link {
+    top: calc(var(--node) + var(--link-gap));
+    bottom: var(--link-gap);
+    left: calc(var(--node) / 2 - 1px);
+    width: 2px;
+    background-image: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--tone) 70%, transparent) 0 var(--dash),
+      transparent var(--dash) var(--dash-period)
+    );
+    background-size: 2px var(--dash-period);
+    animation-name: flow-y;
+  }
+
+  .link::after {
+    bottom: 1px;
+    left: 50%;
+    transform: translateX(-50%) rotate(135deg);
+  }
+
+  /* ---------- Tablets and up: one row, lines between the circles ---------- */
+
+  @media (min-width: 40rem) {
+    .flow {
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 var(--space-s);
+      text-align: center;
+    }
+
+    .step-body {
+      max-width: 16rem;
+      padding-top: var(--space-m);
+    }
+
+    .link {
+      top: calc(var(--node) / 2 - 1px);
+      bottom: auto;
+      left: calc(50% + var(--node) / 2 + var(--link-gap));
+      width: calc(100% - var(--node) - 2 * var(--link-gap));
+      height: 2px;
+      background-image: linear-gradient(
+        to right,
+        color-mix(in srgb, var(--tone) 70%, transparent) 0 var(--dash),
+        transparent var(--dash) var(--dash-period)
+      );
+      background-size: var(--dash-period) 2px;
+      animation-name: flow-x;
+    }
+
+    .link::after {
+      top: 50%;
+      right: 1px;
+      bottom: auto;
+      left: auto;
+      transform: translateY(-50%) rotate(45deg);
+    }
+  }
+
+  @keyframes flow-x {
+    to {
+      background-position-x: var(--dash-period);
+    }
+  }
+
+  @keyframes flow-y {
+    to {
+      background-position-y: var(--dash-period);
+    }
+  }
+</style>

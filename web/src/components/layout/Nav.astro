@@ -1,0 +1,321 @@
+---
+import { Icon } from 'astro-icon/components';
+import Brand from './Brand.astro';
+import { homeSections, pages } from '../../lib/site';
+
+// On the home page, section links jump in place; elsewhere they go back to the home page.
+const onHome = Astro.url.pathname === pages.home;
+const sectionHref = (id: string) => (onHome ? `#${id}` : `${pages.home}#${id}`);
+---
+
+<!--
+  Sticky nav. Wide screens: everything on one row. Narrower screens (iPad
+  portrait, phones): section links move into a menu button.
+  Without JavaScript the links stay visible on a second row instead.
+-->
+<header class="site-header" data-site-header>
+  <nav class="container nav" aria-label="Main">
+    <div class="nav-brand"><Brand /></div>
+
+    <div class="nav-menu" id="nav-menu">
+      <ul class="nav-sections" role="list">
+        {
+          homeSections.map((section) => (
+            <li>
+              <a class="nav-link" href={sectionHref(section.id)} data-section={section.id}>
+                {section.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+
+    <div class="nav-actions">
+      <a class="btn btn-primary nav-cta" href={pages.dashboard}>Dashboard</a>
+      <button
+        type="button"
+        class="nav-toggle"
+        aria-controls="nav-menu"
+        aria-expanded="false"
+        aria-label="Open menu"
+        hidden
+      >
+        <Icon name="lucide:menu" class="nav-toggle-open" aria-hidden="true" />
+        <Icon name="lucide:x" class="nav-toggle-close" aria-hidden="true" />
+      </button>
+    </div>
+  </nav>
+</header>
+
+<style>
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: color-mix(in srgb, var(--color-bg) 85%, transparent);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    backdrop-filter: blur(12px) saturate(140%);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .nav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-l);
+    min-height: var(--nav-height);
+  }
+
+  .nav-brand {
+    flex-shrink: 0;
+  }
+
+  .nav-menu {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-l);
+    min-width: 0;
+  }
+
+  .nav-sections {
+    display: flex;
+    gap: var(--space-m);
+    margin-inline: auto;
+  }
+
+  .nav-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-s);
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+
+  .nav-link {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  /* The section being read, or the current page */
+  .nav-link[aria-current] {
+    color: var(--color-text);
+  }
+
+  .nav-link[aria-current]::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0.45rem;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--color-ember);
+  }
+
+  @media (hover: hover) {
+    .nav-link:hover {
+      color: var(--color-text);
+      text-decoration: none;
+    }
+  }
+
+  .nav-toggle {
+    display: none;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-m);
+    background: transparent;
+    color: var(--color-text);
+    cursor: pointer;
+  }
+
+  .nav-toggle :global(svg) {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+
+  .nav-toggle:active,
+  .nav-toggle[aria-expanded='true'] {
+    background: var(--color-surface-raised);
+  }
+
+  .nav-toggle[aria-expanded='true'] :global(.nav-toggle-open),
+  .nav-toggle[aria-expanded='false'] :global(.nav-toggle-close) {
+    display: none;
+  }
+
+  /* ---------- Narrower screens ---------- */
+
+  @media (max-width: 67.99rem) {
+    /* Without JavaScript: links on a second row that scrolls sideways */
+    .nav {
+      flex-wrap: wrap;
+      column-gap: var(--space-m);
+    }
+
+    .nav-menu {
+      order: 3;
+      flex-basis: 100%;
+      gap: var(--space-m);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .nav-menu::-webkit-scrollbar {
+      display: none;
+    }
+
+    .nav-sections {
+      margin-inline: 0;
+    }
+
+    /* With JavaScript: a menu button and a dropdown panel */
+    .site-header.is-enhanced .nav {
+      flex-wrap: nowrap;
+    }
+
+    .site-header.is-enhanced .nav-toggle:not([hidden]) {
+      display: inline-grid;
+    }
+
+    .site-header.is-enhanced .nav-menu {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0;
+      overflow: visible;
+      padding: var(--space-2xs) max(var(--gutter), (100% - var(--content-width)) / 2) var(--space-m);
+      background: var(--color-bg);
+      border-bottom: 1px solid var(--color-border);
+      box-shadow: var(--shadow-raised);
+    }
+
+    .site-header.is-enhanced.is-open .nav-menu {
+      display: flex;
+    }
+
+    .site-header.is-enhanced .nav-sections {
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .site-header.is-enhanced .nav-link {
+      display: flex;
+      min-height: 3rem;
+      font-size: var(--text-base);
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .site-header.is-enhanced .nav-sections li:last-child .nav-link {
+      border-bottom: 0;
+    }
+
+    /* In the panel, mark the current section with a bar on the left */
+    .site-header.is-enhanced .nav-link[aria-current] {
+      color: var(--color-ember);
+    }
+
+    .site-header.is-enhanced .nav-link[aria-current]::after {
+      left: calc(-1 * var(--space-s));
+      right: auto;
+      top: 0.75rem;
+      bottom: 0.75rem;
+      width: 3px;
+      height: auto;
+    }
+  }
+</style>
+
+<script>
+  const header = document.querySelector<HTMLElement>('[data-site-header]');
+  const toggle = header?.querySelector<HTMLButtonElement>('.nav-toggle');
+  const menu = header?.querySelector<HTMLElement>('#nav-menu');
+
+  if (header && toggle && menu) {
+    // ---------- Menu button (narrow screens) ----------
+    header.classList.add('is-enhanced');
+    toggle.hidden = false;
+    const wide = window.matchMedia('(min-width: 68rem)');
+
+    const setOpen = (open: boolean) => {
+      header.classList.toggle('is-open', open);
+      toggle.setAttribute('aria-expanded', String(open));
+      toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    };
+
+    toggle.addEventListener('click', (event) => {
+      const open = !header.classList.contains('is-open');
+      setOpen(open);
+      // Opened from the keyboard (Enter/Space give detail 0): move focus to the first link.
+      // Opened by a tap or click: leave focus alone so no focus ring appears.
+      if (open && event.detail === 0) menu.querySelector('a')?.focus({ preventScroll: true });
+    });
+
+    // Close after choosing a link, on Escape, on tapping outside, or when the screen gets wide
+    menu.addEventListener('click', (event) => {
+      if ((event.target as Element).closest('a')) setOpen(false);
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && header.classList.contains('is-open')) {
+        setOpen(false);
+        toggle.focus({ preventScroll: true });
+      }
+    });
+    document.addEventListener('click', (event) => {
+      if (header.classList.contains('is-open') && !header.contains(event.target as Node)) setOpen(false);
+    });
+    wide.addEventListener('change', (event) => {
+      if (event.matches) setOpen(false);
+    });
+
+    // ---------- Highlight the section being read (home page only) ----------
+    const links = [...header.querySelectorAll<HTMLAnchorElement>('[data-section]')];
+    const sections = [...document.querySelectorAll<HTMLElement>('main > section')];
+    const linkedIds = new Set(links.map((link) => link.dataset.section));
+    const onHome = links.some((link) => document.getElementById(link.dataset.section ?? ''));
+
+    if (onHome) {
+      let queued = false;
+      const update = () => {
+        queued = false;
+        // Highlight the last linked section whose top has passed a line a quarter of
+        // the way down the screen. A section without a nav link (How it's built) keeps
+        // the previous link lit, so Data story stays on through it.
+        const line = header.offsetHeight + window.innerHeight * 0.25;
+        let currentId: string | undefined;
+        for (const section of sections) {
+          if (section.getBoundingClientRect().top > line) break;
+          if (linkedIds.has(section.id)) currentId = section.id;
+        }
+        for (const link of links) {
+          if (link.dataset.section === currentId) link.setAttribute('aria-current', 'location');
+          else link.removeAttribute('aria-current');
+        }
+      };
+      const queue = () => {
+        if (!queued) {
+          queued = true;
+          requestAnimationFrame(update);
+        }
+      };
+      window.addEventListener('scroll', queue, { passive: true });
+      window.addEventListener('resize', queue);
+      update();
+    }
+  }
+</script>

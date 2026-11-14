@@ -1,0 +1,45 @@
+---
+import SectionHeader from './SectionHeader.astro';
+---
+
+<!-- Draft copy; final text in issue #5 -->
+<section id="problem" class="section section--raised" aria-labelledby="problem-title">
+  <div class="container problem">
+    <SectionHeader
+      eyebrow="The problem"
+      title="The fire record is split in two"
+      headingId="problem-title"
+    />
+    <div class="prose problem-body" data-reveal-group>
+      <p>
+        Satellites have been spotting fires from orbit for more than twenty years. But that record
+        comes from two different instruments, MODIS and VIIRS, which see the ground at very different
+        resolutions.
+      </p>
+      <p>
+        Put their hotspot counts side by side and the line jumps in 2012, the year VIIRS arrived. Fires
+        didn’t suddenly multiply. The sensor changed.
+      </p>
+      <p>
+        Without one consistent record, responders, land managers and scientists can’t tell whether a
+        season is truly unusual or just measured differently.
+      </p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .problem-body {
+    font-size: var(--text-lg);
+    color: var(--color-text-muted);
+  }
+
+  @media (min-width: 64rem) {
+    .problem {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: var(--space-2xl);
+      align-items: start;
+    }
+  }
+</style>

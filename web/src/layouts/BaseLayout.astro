@@ -1,0 +1,65 @@
+---
+import '../styles/global.css';
+import Nav from '../components/layout/Nav.astro';
+import Footer from '../components/layout/Footer.astro';
+import { site } from '../lib/site';
+
+interface Props {
+  /** Page title, shown before the site name. Leave out on the home page. */
+  title?: string;
+  description?: string;
+  /** Page uses scroll-reveal animations (src/scripts/reveal.ts) */
+  reveal?: boolean;
+}
+
+const { title, description = site.description, reveal = false } = Astro.props;
+const pageTitle = title ? `${title} | ${site.name}` : `${site.name}: ${site.tagline}`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <!-- Browser UI colour; must be a literal, matches --color-bg -->
+    <meta name="theme-color" content="#0b0e13" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/png" href="/favicon.png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="generator" content={Astro.generator} />
+    {
+      reveal && (
+        <script is:inline>
+          // Hide scroll-reveal content before first paint (no flash), then let the
+          // animation script reveal it. If that script hasn't started within 3 s,
+          // show everything instead.
+          document.documentElement.classList.add('js-reveal');
+          setTimeout(function () {
+            if (!document.documentElement.classList.contains('reveal-ready')) {
+              document.documentElement.classList.remove('js-reveal');
+            }
+          }, 3000);
+        </script>
+      )
+    }
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <Nav />
+    <main id="main" tabindex="-1">
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>
+
+<style>
+  main:focus {
+    outline: none;
+  }
+</style>
