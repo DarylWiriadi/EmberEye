@@ -187,12 +187,17 @@ ol[role='list'] {
 }
 
 /*
- * Sections land just below the sticky nav when jumped to.
+ * Where a section lands when jumped to from the nav. Sections start with
+ * --space-section of padding, so instead of stopping at the section's top
+ * edge, scroll past half of that padding: the heading ends up a comfortable
+ * gap below the sticky nav rather than far down the screen.
+ * Increase --anchor-gap to land higher on the page, decrease it to land lower.
  * (Not scroll-padding on html: that makes browsers scroll the page whenever
  * keyboard focus moves onto a link inside the sticky nav.)
  */
 section[id] {
-  scroll-margin-top: calc(var(--nav-height) + var(--space-s));
+  --anchor-gap: calc(var(--space-section) / 2);
+  scroll-margin-top: calc(var(--nav-height) - var(--space-section) + var(--anchor-gap));
 }
 
 ::selection {
