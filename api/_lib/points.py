@@ -82,6 +82,28 @@ def build(cur, bbox, cells, start: date, end: date, use_r2=True) -> PointsSource
     return PointsSource("region_points", where, params, "demo-regions", _inside_a_region(ext))
 
 
+WIDE_BASES = 20  # areas touching more H3 base cells than this count as "wide"
+
+
+def build_sample(cur, bbox, cells, start: date, end: date, name: str):
+    """A 1-in-N subset of the points on R2 (export_points.SAMPLES), one file per
+    year. Returns (source, N, number of base cells the area touches), or None if
+    unavailable."""
+    sample = db.manifest.get(name)
+    if not (db.r2_enabled and sample):
+        return None
+    cond, params, bases, _ = _area(cur, bbox, cells)
+    urls = [f"r2://{db.R2_BUCKET}/{f['path']}" for f in sample["files"]
+            if start.year <= f["year"] <= end.year]
+    if not urls or not bases:
+        return None
+    files = ", ".join(f"'{u}'" for u in urls)
+    base_list = ", ".join(str(b) for b in sorted(bases))
+    from_sql = f"(SELECT *, {db.CELL5_FROM_CELL8} AS cell5 FROM read_parquet([{files}]))"
+    where = f"base IN ({base_list}) AND date BETWEEN ? AND ? AND {cond}"
+    return PointsSource(from_sql, where, [start, end, *params], "r2", True), sample["every"], len(bases)
+
+
 def run(cur, bbox, cells, start, end, fn):
     """Build the source and call fn(src); if R2 fails, retry on the demo regions."""
     src = build(cur, bbox, cells, start, end)

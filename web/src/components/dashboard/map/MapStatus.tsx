@@ -7,9 +7,10 @@ interface Props {
   fetching: boolean;
   error: Error | null;
   notes: string[];
+  outlineNote: string | null;
 }
 
-export default function MapStatus({ message, showLegend, frpMax, fetching, error, notes }: Props) {
+export default function MapStatus({ message, showLegend, frpMax, fetching, error, notes, outlineNote }: Props) {
   return (
     <div className="map-status" aria-live="polite">
       {showLegend && (
@@ -23,6 +24,12 @@ export default function MapStatus({ message, showLegend, frpMax, fetching, error
       )}
       <p>{message}</p>
       <p className="map-status-muted">Observed satellite detections</p>
+      {outlineNote && (
+        <p className="map-status-muted map-status-outline">
+          <span className="map-outline-swatch" aria-hidden="true" />
+          {outlineNote}
+        </p>
+      )}
       {fetching && <p className="map-status-muted">Updating…</p>}
       {error && <p className="map-status-error">{error.message}</p>}
       {notes.map((n) => (

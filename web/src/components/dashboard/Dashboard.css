@@ -116,11 +116,19 @@
 }
 
 .time-slider-date {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   min-width: 7.5rem;
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   text-align: right;
+  white-space: nowrap;
   color: var(--color-text);
+}
+
+.time-slider-step {
+  color: var(--color-text-muted);
 }
 
 /* ---------- Below the map ---------- */
@@ -230,6 +238,22 @@
 
 .map-legend {
   margin-bottom: 6px;
+}
+
+.map-status-outline {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.map-outline-swatch {
+  flex-shrink: 0;
+  width: 12px;
+  height: 10px;
+  margin-top: 4px;
+  border: 1.5px solid rgb(255 154 77);
+  border-radius: 2px;
+  background: rgb(255 122 26 / 0.15);
 }
 
 .map-legend-bar {

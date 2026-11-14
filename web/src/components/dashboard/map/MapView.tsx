@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Map, { AttributionControl, NavigationControl, useControl, type MapEvent } from 'react-map-gl/maplibre';
 import { MapboxOverlay, type MapboxOverlayProps } from '@deck.gl/mapbox';
-import { ScatterplotLayer } from '@deck.gl/layers';
+import { PolygonLayer, ScatterplotLayer } from '@deck.gl/layers';
+import { cellsToMultiPolygon, latLngToCell } from 'h3-js';
 import { DataFilterExtension } from '@deck.gl/extensions';
 import type { PickingInfo } from '@deck.gl/core';
 import { setWorkerUrl, type Map as MapLibreMap, type StyleSpecification } from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-import { useAppStore } from '../../../store/useAppStore';
-import { fetchBbox, useHotspots, type HotspotsResponse } from '../../../lib/api';
+import { useAppStore, useSliderWindow, useSteps } from '../../../store/useAppStore';
+import { addDays, DAY_MS, stepOf, windowPhrase } from '../../../lib/steps';
+import { fetchBbox, useBurned, useHotspots, type HotspotsResponse } from '../../../lib/api';
 import {
   BASEMAP_ATTRIBUTION,
   BASEMAP_MAX_ZOOM,
@@ -22,9 +24,12 @@ import { logScale, viridis } from '../../../lib/colors';
 import type { Bbox } from '../../../types';
 import MapStatus from './MapStatus';
 
-const MAX_POINT_DAYS = 366;
 const INITIAL_ZOOM = 1.6;
-const DAY_MS = 86_400_000;
+// Outlines: merged H3 res 7 cells (~5 km2) with a detection in the last 30 days.
+const OUTLINE_MIN_ZOOM = 7.5;
+const OUTLINE_WINDOW_DAYS = 30;
+// Most dots drawn for one slider step; more than this just piles up.
+const STEP_DOT_CAP = 5_000;
 const SWAP_FADE_MS = 450;
 const DAY_FILTER = new DataFilterExtension({ filterSize: 1 });
 
@@ -88,15 +93,11 @@ function boundsOf(map: MapLibreMap): Bbox {
   return [w, clampLat(b.getSouth()), e, clampLat(b.getNorth())];
 }
 
-const daysBetween = (a: string, b: string) => (Date.parse(b) - Date.parse(a)) / 86_400_000 + 1;
-
-const formatDay = (iso: string) =>
-  new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-AU', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
+/** A fixed pseudo-random number in [0, 1) per detection, for even thinning. */
+function spread(p: Point): number {
+  const x = Math.sin(p.lat * 12.9898 + p.lon * 78.233 + p.time * 0.1234) * 43758.5453;
+  return x - Math.floor(x);
+}
 
 function toPoints(res: HotspotsResponse | undefined): Point[] {
   const d = res?.data;
@@ -129,46 +130,75 @@ export default function MapView() {
     [setView],
   );
 
-  const day = useAppStore((s) => s.sliderDate);
   const playing = useAppStore((s) => s.playing);
+  const steps = useSteps();
+  const win = useSliderWindow();
+  const k = useAppStore((s) => s.sliderStep);
+  const winKey = win ? `${win.start}/${win.end}` : '';
 
-  const rangeDays = range ? daysBetween(range.start, range.end) : 0;
-  const rangeOk = rangeDays <= MAX_POINT_DAYS;
   const area = useMemo(() => (view ? fetchBbox(view.bbox, view.zoom) : null), [view]);
-  const rangeQuery = useHotspots(area, range, rangeOk);
+  const rangeQuery = useHotspots(area, range, true);
 
   // The range is fetched once. If it came back sampled (zoomed out), the slider's
-  // day is fetched on its own once the slider settles: never during playback, and
-  // not after pausing either (pause freezes the picture). Picking a day by
+  // window is fetched on its own once the slider settles: never during playback,
+  // and not after pausing either (pause freezes the picture). Picking a window by
   // dragging or with the keyboard loads it.
-  const [settledDay, setSettledDay] = useState<string | null>(null);
+  const [settled, setSettled] = useState<{ key: string; start: string; end: string } | null>(null);
   useEffect(() => {
-    if (playing || !day) return;
-    const id = window.setTimeout(() => setSettledDay(day), 400);
+    if (playing || !win) return;
+    const id = window.setTimeout(() => setSettled({ key: winKey, ...win }), 400);
     return () => window.clearTimeout(id);
-  }, [day, playing]);
+  }, [winKey, playing]); // eslint-disable-line react-hooks/exhaustive-deps
+  const isSettled = !!settled && settled.key === winKey;
   const frozen = useAppStore((s) => s.frozen);
-  // Zoomed out the range is almost always sampled, so ask for the day in parallel
-  // instead of waiting for the range to say so.
-  const likelySampled = rangeQuery.data ? rangeQuery.data.truncated : (view?.zoom ?? 0) < 5;
-  const useDayQuery = likelySampled && !playing && !frozen && settledDay === day;
-  const dayQuery = useHotspots(area, settledDay ? { start: settledDay, end: settledDay } : null, useDayQuery);
-  const fromDayQuery = useDayQuery && dayQuery.data?.start === day;
+  const unfreeze = useAppStore((s) => s.unfreeze);
+  const areaKey = area?.join(',');
+  useEffect(() => {
+    unfreeze();
+  }, [areaKey, unfreeze]);
+  // The slider's window is asked for straight away, alongside the range, so it
+  // shows first. Data still on screen from the previous view doesn't count.
+  const rangeFresh = !!rangeQuery.data && !rangeQuery.isPlaceholderData;
+  const likelySampled = rangeFresh ? rangeQuery.data!.truncated : true;
+  const useWinQuery = likelySampled && !playing && !frozen && isSettled;
+  const winQuery = useHotspots(area, settled ? { start: settled.start, end: settled.end } : null, useWinQuery, {
+    limit: STEP_DOT_CAP,
+    keepAnyPrevious: false,
+  });
+  const fromWinQuery = useWinQuery && winQuery.data?.start === win?.start && winQuery.data?.end === win?.end;
 
   // All loaded points go to the GPU once; the slider only moves a filter window.
   const rangePoints = useMemo(() => toPoints(rangeQuery.data), [rangeQuery.data]);
-  const dayPoints = useMemo(() => toPoints(dayQuery.data), [dayQuery.data]);
-  const dayCount = useMemo(
-    () => rangePoints.reduce((n, p) => n + (p.date === day ? 1 : 0), 0),
-    [rangePoints, day],
+  const winPoints = useMemo(() => toPoints(winQuery.data), [winQuery.data]);
+  const stepIndex = useCallback((iso: string) => (steps ? stepOf(steps, iso) : 0), [steps]);
+  // 0 for the newest day in its step, up to 1 for the oldest.
+  const dayAge = useCallback(
+    (iso: string) => {
+      if (!steps || steps.size === 1) return 0;
+      const back = Math.round((steps.endTime - Date.parse(`${iso}T00:00:00Z`)) / DAY_MS);
+      return (back % steps.size) / (steps.size - 1);
+    },
+    [steps],
   );
+  // Steps holding more than STEP_DOT_CAP dots keep an even, fixed share of them.
+  const { shownPoints, perStep } = useMemo(() => {
+    const perStep: Record<number, number> = {};
+    for (const p of rangePoints) perStep[stepIndex(p.date)] = (perStep[stepIndex(p.date)] ?? 0) + 1;
+    const shownPoints = rangePoints.filter((p) => {
+      const n = perStep[stepIndex(p.date)];
+      return n <= STEP_DOT_CAP || spread(p) < STEP_DOT_CAP / n;
+    });
+    return { shownPoints, perStep };
+  }, [rangePoints, stepIndex]);
+  const stepCount = perStep[k] ?? 0;
+  const stepShown = Math.min(stepCount, STEP_DOT_CAP);
   const frpMax = useMemo(
-    () => Math.max(2, ...[rangePoints, dayPoints].map((ps) => ps.reduce((m, p) => Math.max(m, p.frp), 0))),
-    [rangePoints, dayPoints],
+    () => Math.max(2, ...[rangePoints, winPoints].map((ps) => ps.reduce((m, p) => Math.max(m, p.frp), 0))),
+    [rangePoints, winPoints],
   );
 
-  // Cross-fade between the playback sample and the full day instead of swapping.
-  const mixTarget = fromDayQuery ? 1 : 0;
+  // Cross-fade between the playback sample and the full window instead of swapping.
+  const mixTarget = fromWinQuery ? 1 : 0;
   const [mix, setMix] = useState(0);
   const mixRef = useRef(0);
   useEffect(() => {
@@ -182,44 +212,44 @@ export default function MapView() {
     const t0 = performance.now();
     let raf = 0;
     const step = (now: number) => {
-      const k = Math.min(1, (now - t0) / SWAP_FADE_MS);
-      mixRef.current = from + (mixTarget - from) * k;
+      const f = Math.min(1, (now - t0) / SWAP_FADE_MS);
+      mixRef.current = from + (mixTarget - from) * f;
       setMix(mixRef.current);
-      if (k < 1) raf = requestAnimationFrame(step);
+      if (f < 1) raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
   }, [mixTarget]);
 
-  const startMs = range ? Date.parse(`${range.start}T00:00:00Z`) : 0;
-  const dayIndex = useCallback((iso: string) => Math.round((Date.parse(`${iso}T00:00:00Z`) - startMs) / DAY_MS), [startMs]);
-
-  // The slider position (fractional while gliding) drives the fade between days.
+  // The slider position (fractional while gliding) drives the fade between steps.
   const t = useAppStore((s) => s.sliderPos);
 
   // Live zoom (not debounced) so dots grow smoothly while zooming.
   const [zoomNow, setZoomNow] = useState(INITIAL_ZOOM);
-  const dotRadius = Math.min(10, 2 + Math.max(0, zoomNow - 3) * 0.9);
+  const dotRadius = Math.min(10, 1.2 + Math.max(0, zoomNow - 1.5) * 0.75);
 
   const status = useMemo(() => {
-    const label = day ? formatDay(day) : '';
+    const when = win ? windowPhrase(win) : '';
     const r = rangeQuery.data;
-    if (!rangeOk) return 'Choose a date range of a year or less to see hotspots on the map';
-    if (fromDayQuery && dayQuery.data) {
-      const d = dayQuery.data;
+    const winFresh = fromWinQuery && !winQuery.isPlaceholderData;
+    if (rangeQuery.isPlaceholderData && !winFresh) return 'Loading hotspots for this view…';
+    if (fromWinQuery && winQuery.data) {
+      const d = winQuery.data;
+      const total = `${d.total_estimated ? 'About ' : ''}${d.total.toLocaleString()}`;
       return d.truncated
-        ? `${d.total.toLocaleString()} hotspots on ${label} · showing a sample of ${d.count.toLocaleString()}, zoom in for all`
-        : `${d.total.toLocaleString()} hotspots on ${label}`;
+        ? `${total} hotspots ${when} · showing ${d.count.toLocaleString()}`
+        : `${total} hotspots ${when}`;
     }
     if (!r) return 'Loading hotspots…';
     if (r.truncated) {
-      if (playing) return `Hotspots on ${label} · a sample while playing`;
-      if (frozen) return `Hotspots on ${label} · a sample (paused) · drag the slider or zoom in for every hotspot`;
-      return `Hotspots on ${label} · loading the full day…`;
+      if (playing) return `Hotspots ${when} · a sample while playing`;
+      if (frozen) return `Hotspots ${when} · a sample · zoom in for every hotspot`;
+      return `Hotspots ${when} · loading all of them…`;
     }
-    return `${dayCount.toLocaleString()} hotspots on ${label} · ${r.total.toLocaleString()} in the date range`;
-  }, [day, rangeOk, rangeQuery.data, fromDayQuery, dayQuery.data, playing, frozen, dayCount]);
-  const activeQuery = fromDayQuery ? dayQuery : rangeQuery;
+    const shown = stepShown < stepCount ? ` · showing about ${stepShown.toLocaleString()}` : '';
+    return `${stepCount.toLocaleString()} hotspots ${when}${shown} · ${r.total.toLocaleString()} in the date range`;
+  }, [win, rangeQuery.data, rangeQuery.isPlaceholderData, fromWinQuery, winQuery.data, winQuery.isPlaceholderData, playing, frozen, stepCount, stepShown]);
+  const activeQuery = fromWinQuery ? winQuery : rangeQuery;
 
   const hotspotLayer = (id: string, data: Point[], opacity: number) =>
     new ScatterplotLayer<Point>({
@@ -233,22 +263,90 @@ export default function MapView() {
       radiusScale: dotRadius,
       autoHighlight: true,
       highlightColor: [255, 255, 255, 230],
-      getFillColor: (p) => viridis(0.35 + 0.65 * logScale(p.frp + 1, frpMax + 1)),
+      // Within a multi-day step, older days fade so the newest fires stand out.
+      getFillColor: (p) => viridis(0.35 + 0.65 * logScale(p.frp + 1, frpMax + 1), 255 - Math.round(150 * dayAge(p.date))),
       pickable: true,
       extensions: [DAY_FILTER],
-      getFilterValue: (p) => dayIndex(p.date),
+      getFilterValue: (p) => stepIndex(p.date),
       filterRange: [t - 1, t + 1],
       filterSoftRange: [t - 0.5, t + 0.5],
-      updateTriggers: { getFillColor: [frpMax], getFilterValue: [startMs] },
+      updateTriggers: { getFillColor: [frpMax, dayAge], getFilterValue: [stepIndex] },
     });
-  const layers = [hotspotLayer('hotspots-range', rangePoints, 1 - mix), hotspotLayer('hotspots-day', dayPoints, mix)];
+
+  // Approximate recently burned area: cells with a detection in the
+  // OUTLINE_WINDOW_DAYS up to the end of the slider's window. Built from the
+  // loaded dots when they're all there (works while playing); otherwise asked for
+  // just those days once the slider settles, without waiting for the dots.
+  const outlinesWanted = (view?.zoom ?? 0) >= OUTLINE_MIN_ZOOM;
+  const dotsComplete = rangeFresh && !rangeQuery.data!.truncated;
+  const outlineSpan = useMemo(() => {
+    if (!win || !range) return null;
+    const start = addDays(win.end, -(OUTLINE_WINDOW_DAYS - 1));
+    return { start: start < range.start ? range.start : start, end: win.end };
+  }, [win, range]);
+  const burnedQuery = useBurned(
+    area,
+    isSettled ? outlineSpan : null,
+    outlinesWanted && !dotsComplete && !playing && isSettled,
+  );
+  const startMs = range ? Date.parse(`${range.start}T00:00:00Z`) : 0;
+  const dayIndex = useCallback((iso: string) => Math.round((Date.parse(`${iso}T00:00:00Z`) - startMs) / DAY_MS), [startMs]);
+  const pointCells = useMemo(
+    () =>
+      outlinesWanted && dotsComplete
+        ? rangePoints.map((p) => ({ cell: latLngToCell(p.lat, p.lon, 7), d: dayIndex(p.date) }))
+        : [],
+    [outlinesWanted, dotsComplete, rangePoints, dayIndex],
+  );
+  const outlines = useMemo(() => {
+    if (!outlinesWanted || !outlineSpan) return [];
+    let cells: string[] = [];
+    if (dotsComplete) {
+      const from = dayIndex(outlineSpan.start);
+      const to = dayIndex(outlineSpan.end);
+      cells = [...new Set(pointCells.filter((c) => c.d >= from && c.d <= to).map((c) => c.cell))];
+    } else {
+      const b = burnedQuery.data;
+      if (!b || b.start !== outlineSpan.start || b.end !== outlineSpan.end) return [];
+      cells = b.cells;
+    }
+    return cells.length ? cellsToMultiPolygon(cells, true).map((polygon) => ({ polygon })) : [];
+  }, [outlinesWanted, outlineSpan, dotsComplete, pointCells, dayIndex, burnedQuery.data]);
+
+  const outlineLayer = new PolygonLayer<{ polygon: number[][][] }>({
+    id: 'fire-outlines',
+    data: outlines,
+    getPolygon: (o) => o.polygon,
+    filled: true,
+    getFillColor: [255, 122, 26, 35],
+    stroked: true,
+    getLineColor: [255, 154, 77, 230],
+    lineWidthUnits: 'pixels',
+    getLineWidth: 1.5,
+  });
+
+  const layers = [
+    outlineLayer,
+    hotspotLayer('hotspots-range', shownPoints, 1 - mix),
+    hotspotLayer('hotspots-window', winPoints, mix),
+  ];
 
   const getTooltip = useCallback(({ object }: PickingInfo) => {
     if (!object) return null;
     const p = object as Point;
-    const t = String(p.time).padStart(4, '0');
-    return `${p.date} ${t.slice(0, 2)}:${t.slice(2)} UTC\nFRP ${p.frp} MW\n${p.sensor.replace('_', ' ')}, confidence ${p.confidence}\nObserved detection`;
+    const time = String(p.time).padStart(4, '0');
+    return `${p.date} ${time.slice(0, 2)}:${time.slice(2)} UTC\nFRP ${p.frp} MW\n${p.sensor.replace('_', ' ')}, confidence ${p.confidence}\nObserved detection`;
   }, []);
+
+  const outlineNote = (() => {
+    if (!outlinesWanted) return 'Zoom in to see fire outlines';
+    if (burnedQuery.error) return 'Zoom in further to see fire outlines';
+    if (outlines.length > 0 && outlineSpan)
+      return `Outlined: area with fire detected ${windowPhrase(outlineSpan)} (approx., ~5 km² cells)`;
+    if (!dotsComplete && playing) return 'Fire outlines update when paused';
+    if (burnedQuery.isFetching || (!dotsComplete && !isSettled)) return 'Loading fire outlines…';
+    return null;
+  })();
 
   return (
     <div className="map-wrap">
@@ -269,11 +367,12 @@ export default function MapView() {
       </Map>
       <MapStatus
         message={status}
-        showLegend={dayCount > 0 || fromDayQuery}
+        showLegend={stepCount > 0 || fromWinQuery}
         frpMax={frpMax}
-        fetching={rangeQuery.isFetching || (useDayQuery && dayQuery.isFetching)}
+        fetching={rangeQuery.isFetching || (useWinQuery && winQuery.isFetching)}
         error={activeQuery.error as Error | null}
         notes={activeQuery.data?.notes.slice(1) ?? []}
+        outlineNote={outlineNote}
       />
     </div>
   );

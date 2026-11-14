@@ -1,4 +1,4 @@
-"""Upload the staged hotspot points (data/r2/points/) to Cloudflare R2.
+"""Upload the staged hotspot points (data/r2/points/, sample/, wide/) to Cloudflare R2.
 
 Credentials come from environment variables, or from pipeline/.env (gitignored):
     R2_ACCOUNT_ID=...
@@ -7,8 +7,8 @@ Credentials come from environment variables, or from pipeline/.env (gitignored):
     R2_BUCKET=embereye-hotspots
 
 Files already in the bucket with the same size are skipped, so it's safe to
-stop and re-run. Objects in the bucket that are no longer staged are deleted
-(the bucket mirrors the stage folder exactly).
+stop and re-run. For each staged folder, objects under it in the bucket that
+are no longer staged are deleted; folders not staged locally are left alone.
 
 Usage:  python upload_r2.py            # upload
         python upload_r2.py --check    # test the credentials only
@@ -24,7 +24,7 @@ from botocore.config import Config
 
 import config as C
 
-PREFIX = "points/"
+PREFIXES = ("points/", "sample/", "wide/")
 
 
 def load_env():
@@ -51,9 +51,9 @@ def client():
     )
 
 
-def existing(s3, bucket) -> dict[str, int]:
+def existing(s3, bucket, prefix) -> dict[str, int]:
     out = {}
-    for page in s3.get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=PREFIX):
+    for page in s3.get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=prefix):
         for obj in page.get("Contents", []):
             out[obj["Key"]] = obj["Size"]
     return out
@@ -63,15 +63,19 @@ def main(args):
     sys.stdout.reconfigure(encoding="utf-8")
     load_env()
     s3, bucket = client(), os.environ["R2_BUCKET"]
-    remote = existing(s3, bucket)
-    print(f"Connected to bucket '{bucket}': {len(remote)} point files already there")
+    stage = C.R2_STAGE_DIR
+    remote, local = {}, {}
+    for prefix in PREFIXES:
+        r = existing(s3, bucket, prefix)
+        print(f"Bucket '{bucket}': {len(r)} files under {prefix}")
+        staged = {f.relative_to(stage).as_posix(): f for f in sorted((stage / prefix).rglob("*.parquet"))}
+        if staged:
+            remote |= r
+            local |= staged
     if args.check:
         return
-
-    stage = C.R2_STAGE_DIR
-    local = {f.relative_to(stage).as_posix(): f for f in sorted((stage / "points").rglob("*.parquet"))}
     if not local:
-        sys.exit(f"Nothing staged in {stage / 'points'}; run export_points.py first")
+        sys.exit(f"Nothing staged in {stage}; run export_points.py first")
     todo = [(k, f) for k, f in local.items() if remote.get(k) != f.stat().st_size]
     stale = [k for k in remote if k not in local]
     total = sum(f.stat().st_size for _, f in todo)
