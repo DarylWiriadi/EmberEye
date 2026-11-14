@@ -14,12 +14,14 @@ import time
 # Make `_lib` importable however the function is loaded (Vercel or uvicorn).
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from fastapi import APIRouter, FastAPI  # noqa: E402
+import duckdb  # noqa: E402
+from fastapi import APIRouter, FastAPI, Request  # noqa: E402
+from fastapi.responses import JSONResponse  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.middleware.gzip import GZipMiddleware  # noqa: E402
 
 from _lib import db  # noqa: E402
-from _lib.routes import burned, calendar, export, hotspots  # noqa: E402
+from _lib.routes import burned, calendar, export, hotspots, stats  # noqa: E402
 
 PREFIX = "/api"
 
@@ -35,6 +37,18 @@ app.add_middleware(
     allow_methods=["GET"],
     allow_headers=["*"],
 )
+
+
+
+@app.exception_handler(duckdb.FatalException)
+@app.exception_handler(duckdb.InternalException)
+def database_crashed(_request: Request, exc: Exception):
+    # DuckDB refuses every query after a fatal error; start over on the next request.
+    db.log.error("DuckDB fatal error, reconnecting: %s", exc)
+    db.reset()
+    return JSONResponse(status_code=503, content={
+        "detail": "The data service hit an internal error and has restarted. Please try again."})
+
 
 meta = APIRouter()
 
@@ -56,5 +70,5 @@ def health():
             "query_ms": round((time.perf_counter() - t) * 1000, 1)}
 
 
-for r in (meta, calendar.router, hotspots.router, burned.router, export.router):
+for r in (meta, calendar.router, hotspots.router, burned.router, export.router, stats.router):
     app.include_router(r, prefix=PREFIX)

@@ -5,6 +5,7 @@ import { useHealth } from '../../lib/api';
 import { useAppStore } from '../../store/useAppStore';
 import MapView from './map/MapView';
 import DownloadMenu from './downloads/DownloadMenu';
+import StatsPanel from './stats/StatsPanel';
 import DateRangeInputs from './timeline/DateRangeInputs';
 import TimeSlider from './timeline/TimeSlider';
 import './Dashboard.css';
@@ -69,7 +70,7 @@ function DashboardShell() {
       </div>
 
       <section className="dash-stats" aria-label="Statistics">
-        <div className="dash-slot">Stats</div>
+        <StatsPanel />
       </section>
     </div>
   );

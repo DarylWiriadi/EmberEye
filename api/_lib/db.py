@@ -86,9 +86,14 @@ def _connect() -> duckdb.DuckDBPyConnection:
     # Vercel's filesystem is read-only except /tmp.
     tmp = Path(tempfile.gettempdir()).as_posix()
     con.execute(f"SET temp_directory = '{tmp}'")
+    # A runaway query must fail, not fill the disk (one once spilled 15.7 GB).
+    con.execute("SET max_temp_directory_size = '4GiB'")
     # Serverless functions have no writable home folder; httpfs/secrets may need one.
     con.execute(f"SET home_directory = '{tmp}'")
     con.execute("SET memory_limit = '1GB'")
+    # The map, charts and cards query at the same time; with every query using all
+    # cores they overran memory and spilled GBs to disk. Fewer threads each fixes it.
+    con.execute(f"SET threads = {int(os.environ.get('DUCKDB_THREADS', '4'))}")
     con.execute(f"SET extension_directory = '{EXT_DIR.as_posix()}'")
     con.execute("SET autoinstall_known_extensions = false")
     con.execute(f"""
@@ -96,6 +101,8 @@ def _connect() -> duckdb.DuckDBPyConnection:
         CREATE VIEW daily AS SELECT * FROM read_parquet('{_p("global", "daily_res3", "*.parquet")}');
         CREATE TABLE cells AS SELECT * FROM '{_p("global", "cells_res5.parquet")}';
         CREATE TABLE days AS SELECT * FROM '{_p("global", "days.parquet")}';
+        CREATE VIEW weather AS SELECT * FROM read_parquet('{_p("global", "weather_res3.parquet")}');
+        CREATE VIEW landcover AS SELECT * FROM read_parquet('{_p("global", "landcover_res5.parquet")}');
         CREATE VIEW region_points AS
         SELECT *, {CELL5_FROM_CELL8} AS cell5 FROM read_parquet('{_p("regions", "*.parquet")}');
     """)
@@ -114,6 +121,19 @@ def cursor() -> duckdb.DuckDBPyConnection:
         if _con is None:
             _con = _connect()
     return _con.cursor()
+
+
+def reset() -> None:
+    """Drop the connection after a fatal DuckDB error (which leaves the database
+    unusable); the next request opens a fresh one."""
+    global _con
+    with _lock:
+        if _con is not None:
+            try:
+                _con.close()
+            except duckdb.Error:
+                pass
+        _con = None
 
 
 def coverage(cur) -> tuple:

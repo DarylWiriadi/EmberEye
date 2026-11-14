@@ -171,6 +171,69 @@ export function useHotspots(
   });
 }
 
+export interface CalendarPeriod {
+  /** YYYY-MM-DD (day level) or YYYY-MM (month level). */
+  period: string;
+  /** Harmonized fire cell-days (VIIRS S-NPP equivalent). */
+  fire_days: number;
+  detections: number;
+  frp_mw: number;
+  median: number | null;
+  mean: number | null;
+  ratio_to_median: number | null;
+  anomaly_pct: number | null;
+}
+
+export interface CalendarResponse {
+  level: 'day' | 'month';
+  start: string;
+  end: string;
+  notes?: string[];
+  data: CalendarPeriod[];
+}
+
+export function useCalendar(bbox: Bbox | null, range: DateRange | null, level: 'day' | 'month') {
+  const b = bbox ? bboxParam(bbox) : '';
+  return useQuery({
+    queryKey: ['calendar', b, range?.start, range?.end, level],
+    queryFn: ({ signal }) => getJson<CalendarResponse>('/calendar', { bbox: b, level, ...range }, signal),
+    enabled: !!bbox && !!range,
+    placeholderData: keepPreviousData,
+    staleTime: 10 * 60_000,
+  });
+}
+
+export interface WeatherMonth {
+  month: string;
+  t2m: number | null;
+  rh: number | null;
+  wind_ms: number | null;
+  wind_from_deg: number | null;
+  soil: number | null;
+  fwi: number | null;
+}
+
+export interface StatsResponse {
+  start: string;
+  end: string;
+  area: { cells_res5: number; centre: [number, number] | null };
+  weather: WeatherMonth[];
+  landcover: { shares: Record<string, number | null>; basis: string } | null;
+  /** The latest month with MERRA-2 weather, and with FWI (up to a year before the range end). */
+  latest: { weather: WeatherMonth | null; fwi: WeatherMonth | null };
+}
+
+export function useAreaStats(bbox: Bbox | null, range: DateRange | null) {
+  const b = bbox ? bboxParam(bbox) : '';
+  return useQuery({
+    queryKey: ['stats', b, range?.start, range?.end],
+    queryFn: ({ signal }) => getJson<StatsResponse>('/stats', { bbox: b, ...range }, signal),
+    enabled: !!bbox && !!range,
+    placeholderData: keepPreviousData,
+    staleTime: 10 * 60_000,
+  });
+}
+
 export interface ExportEstimate {
   hotspots: number;
   /** false: estimated from a sample (big searches). */

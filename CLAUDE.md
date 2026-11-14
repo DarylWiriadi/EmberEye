@@ -107,7 +107,7 @@ nasa-space-apps-2026/
 │   │       ├── calendar.py       GET /api/calendar
 │   │       ├── hotspots.py       GET /api/hotspots
 │   │       ├── export.py         GET /api/export.csv, /api/export-summary.csv
-│   │       ├── stats.py          GET /api/stats (planned)
+│   │       ├── stats.py          GET /api/stats: monthly weather + FWI, land cover
 │   │       └── risk.py           GET /api/risk (planned)
 │   ├── duckdb_ext/               Bundled httpfs extension (Linux build committed)
 │   ├── static/                   Sim inputs, presets, featured fires, towns (served from CDN)
@@ -157,8 +157,7 @@ nasa-space-apps-2026/
         │       │   ├── DateRangeInputs.tsx
         │       │   └── TimeSlider.tsx
         │       ├── stats/
-        │       │   ├── StatsPanel.tsx
-        │       │   ├── StatCards.tsx
+        │       │   ├── StatsPanel.tsx    Cards for the slider's step + small charts
         │       │   └── TimeSeriesChart.tsx   uPlot
         │       ├── simulation/
         │       │   ├── SimulationPanel.tsx
@@ -263,7 +262,7 @@ FastAPI + DuckDB over the Parquet files. Areas are passed as a bbox or a list of
 |---|---|
 | `GET /calendar` | Harmonized counts per day or month for an area + date range, with medians/anomalies |
 | `GET /hotspots` | Hotspot points for a bbox + date (or range) for the map |
-| `GET /stats` | Summary stats for an area + range (counts, anomaly, FRP, etc.) |
+| `GET /stats` | The area's monthly weather (MERRA-2) + FWI (GFWED) and land cover of what burns; activity/anomaly/FRP come from `/calendar` |
 | `GET /export.csv` | Hotspot CSV (streamed): date, lat, lon, sensor, confidence, FRP, H3 cell |
 | `GET /export-summary.csv` | Monthly counts + anomalies for the area |
 | `GET /risk` | Risk tiles for the current view |
@@ -288,6 +287,7 @@ Rules:
 - **R2 layout** (`pipeline/export_points.py`, uploaded with `upload_r2.py`): `points/year=/base=NNN.parquet` (every point, one file per H3 base cell, sorted by H3 res 2 area then date in 20k-row groups so zoomed-in requests only download nearby row groups), plus `sample/year=` (1 in 32, for long ranges) and `wide/year=` (1 in 4, sorted by date, for continent/world views). `/hotspots` picks the cheapest one that answers the request (ranges over a year always use `sample`); reading every point for a world view is far too slow (34–54 s for 9 months). The map's slider moves in steps (`web/src/lib/steps.ts`): one day for short ranges, equal multi-day windows (max 31 steps) for longer ones.
 - Vercel sets `AWS_REGION` (e.g. `ap-southeast-2`); the DuckDB R2 secret sets `REGION 'auto'` so R2 doesn't reject it. `/api/health` shows the R2 status and the last R2 error (keys masked).
 - **H3 in the API**: the API uses the `h3` Python package (cell conversion only); it does **not** need the DuckDB `h3` extension, so there is no build step and nothing is downloaded at runtime. The pipeline precomputes every H3 index the API needs (e.g. `global/cells_res5.parquet` has each cell's res 3 parent and centre lat/lng). The DuckDB `h3` extension is used only by the offline pipeline.
+- **DuckDB 2.0 pitfalls**: one big multi-CTE query for large areas (the daily calendar) spilled >15 GB of temp files or crashed with an internal error that invalidates the whole database. Keep queries simple (do arithmetic in Python), `max_temp_directory_size` is capped at 4 GiB, and `index.py` resets the connection after any `FatalException`/`InternalException`.
 - **Read-only filesystem**: open DuckDB in memory, read Parquet files by path, and set `temp_directory` to `/tmp`.
 - **Limits to respect**: a **Python function bundle is limited to 225 MB** (measured on a real deploy: the build fails with `LAMBDA_SIZE_EXCEEDED`). Measured on a failed deploy: Python packages ~28 MB, and **everything under `api/` is bundled** (neither `.vercelignore` nor `excludeFiles` kept files out). So never put files the API doesn't read in `api/`. Currently ~221 MB (only ~4 MB spare): global counts ~127 MB, weather + GFWED FWI 13 MB, httpfs 27 MB, SE Australia fallback points 20 MB, land cover 1.4 MB, packages ~28 MB. Climatology and calibration ratios live in `pipeline/` instead. Individual hotspot points live in Cloudflare R2. Responses ≤ 4.5 MB unless streamed, so **stream CSV exports** and keep `/hotspots` responses small (bbox + date, with a cap).
 - **Static files** (`static/`): mount with FastAPI `StaticFiles` so Vercel serves them from its CDN.
