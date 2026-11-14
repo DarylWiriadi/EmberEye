@@ -56,7 +56,11 @@ export const useSimStore = create<SimState>()((set, get) => ({
     if (!ignition) return;
     set({ status: 'running', error: null, playing: false, ran: { ...inputs, ...ignition } });
   },
-  finish: (result, ms) => set({ status: 'done', result, ms, hour: result.stats.length - 1 }),
+  finish: (result, ms) => {
+    const still = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const play = !still && !result.unburnable;
+    set({ status: 'done', result, ms, hour: play ? 0 : result.stats.length - 1, playing: play });
+  },
   fail: (error) => set({ status: 'error', error }),
   setHour: (hour) => set({ hour }),
   setPlaying: (playing) => set({ playing }),
