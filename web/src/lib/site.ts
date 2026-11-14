@@ -13,7 +13,6 @@ export const site = {
 export const pages = {
   home: '/',
   dashboard: '/dashboard',
-  methodology: '/methodology',
 };
 
 // Home page sections, in page order. Used for section ids and nav links.

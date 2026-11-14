@@ -6,12 +6,11 @@ import { homeSections, pages } from '../../lib/site';
 // On the home page, section links jump in place; elsewhere they go back to the home page.
 const onHome = Astro.url.pathname === pages.home;
 const sectionHref = (id: string) => (onHome ? `#${id}` : `${pages.home}#${id}`);
-const isCurrent = (path: string) => Astro.url.pathname.replace(/\/$/, '') === path;
 ---
 
 <!--
   Sticky nav. Wide screens: everything on one row. Narrower screens (iPad
-  portrait, phones): section links and Methodology move into a menu button.
+  portrait, phones): section links move into a menu button.
   Without JavaScript the links stay visible on a second row instead.
 -->
 <header class="site-header" data-site-header>
@@ -30,13 +29,6 @@ const isCurrent = (path: string) => Astro.url.pathname.replace(/\/$/, '') === pa
           ))
         }
       </ul>
-      <a
-        class="nav-link nav-link--page"
-        href={pages.methodology}
-        aria-current={isCurrent(pages.methodology) ? 'page' : undefined}
-      >
-        Methodology
-      </a>
     </div>
 
     <div class="nav-actions">
@@ -229,7 +221,7 @@ const isCurrent = (path: string) => Astro.url.pathname.replace(/\/$/, '') === pa
       border-bottom: 1px solid var(--color-border);
     }
 
-    .site-header.is-enhanced .nav-link--page {
+    .site-header.is-enhanced .nav-sections li:last-child .nav-link {
       border-bottom: 0;
     }
 
