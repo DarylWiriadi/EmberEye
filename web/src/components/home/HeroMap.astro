@@ -55,7 +55,6 @@ const BEHIND_TEXT = 55; // % across
     </div>
   </div>
 </div>
-<p class="hero-map-caption">Glowing areas: where fires burned most, 2002 to 2026, in our harmonized record.</p>
 
 <style>
   .hero-map {
@@ -147,17 +146,6 @@ const BEHIND_TEXT = 55; // % across
     }
   }
 
-  .hero-map-caption {
-    position: absolute;
-    right: 5em;
-    bottom: 1.5em;
-    z-index: 1;
-    max-width: 24em;
-    font-size: max(0.875rem, 0.8em); /* never below 14px */
-    text-align: right;
-    color: var(--color-text-subtle);
-  }
-
   /* Reduced motion: the map and hotspots stay still */
   @media (prefers-reduced-motion: reduce) {
     .hero-map-inner {
@@ -168,17 +156,6 @@ const BEHIND_TEXT = 55; // % across
       animation: none;
       opacity: 0.5;
       transform: scale(1.8);
-    }
-  }
-
-  /* Phones (same rule as the hero's stacked layout) */
-  @media (max-width: 47.99rem) and (hover: none) and (pointer: coarse), (max-width: 29.99rem) {
-    .hero-map-caption {
-      left: var(--gutter);
-      right: var(--gutter);
-      bottom: var(--space-m);
-      max-width: none;
-      text-align: left;
     }
   }
 </style>
