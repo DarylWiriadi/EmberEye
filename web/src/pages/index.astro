@@ -1,16 +1,22 @@
 ---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/home/Hero.astro';
+import Problem from '../components/home/Problem.astro';
+import DataStory from '../components/home/DataStory.astro';
+import HarmonizedChart from '../components/home/HarmonizedChart.astro';
+import Approach from '../components/home/Approach.astro';
+import FeaturedFires from '../components/home/FeaturedFires.astro';
+import Audience from '../components/home/Audience.astro';
+import FireTransition from '../components/home/FireTransition.astro';
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<BaseLayout>
+  <Hero />
+  <Problem />
+  <DataStory />
+  <HarmonizedChart />
+  <Approach />
+  <FeaturedFires />
+  <Audience />
+  <FireTransition />
+</BaseLayout>

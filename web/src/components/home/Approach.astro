@@ -1,0 +1,107 @@
+---
+import { Icon } from 'astro-icon/components';
+import SectionHeader from './SectionHeader.astro';
+import { pages } from '../../lib/site';
+
+// Draft copy; final text in issue #5
+const features = [
+  {
+    icon: 'lucide:calendar-days',
+    title: 'Burning calendar',
+    text: 'See busy and quiet months at a glance, from 2002 to today, for any area you choose.',
+  },
+  {
+    icon: 'lucide:git-compare',
+    title: 'Compare against history',
+    text: 'Find out whether this month is above or below the long-term median, and by how much.',
+  },
+  {
+    icon: 'lucide:flame',
+    title: 'Simulate spread',
+    text: 'Start a fire on the map and see an estimate of where it could spread over the next 72 hours.',
+  },
+];
+---
+
+<section id="approach" class="section section--raised" aria-labelledby="approach-title">
+  <div class="container">
+    <SectionHeader
+      eyebrow="What you can do"
+      title="From twenty years of hotspots to answers"
+      headingId="approach-title"
+    />
+
+    <ul class="feature-grid" role="list">
+      {
+        features.map((f) => (
+          <li class="card feature">
+            <span class="feature-icon">
+              <Icon name={f.icon} aria-hidden="true" />
+            </span>
+            <h3>
+              <a class="card-link" href={pages.dashboard}>
+                {f.title}
+              </a>
+            </h3>
+            <p class="muted">{f.text}</p>
+            <span class="feature-more" aria-hidden="true">
+              Open in the dashboard
+              <Icon name="lucide:arrow-right" />
+            </span>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>
+
+<style>
+  .feature-grid {
+    display: grid;
+    gap: var(--space-m);
+  }
+
+  @media (min-width: 48rem) {
+    .feature-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  .feature {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  .feature-icon {
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    height: 3rem;
+    margin-bottom: var(--space-2xs);
+    border-radius: var(--radius-m);
+    background: color-mix(in srgb, var(--color-ember) 14%, transparent);
+    color: var(--color-ember);
+  }
+
+  .feature-icon :global(svg) {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .feature-more {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-3xs);
+    margin-top: auto;
+    padding-top: var(--space-xs);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-ember);
+  }
+
+  .feature-more :global(svg) {
+    width: 1em;
+    height: 1em;
+  }
+</style>

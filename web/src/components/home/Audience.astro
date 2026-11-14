@@ -1,0 +1,91 @@
+---
+import { Icon } from 'astro-icon/components';
+import SectionHeader from './SectionHeader.astro';
+
+// Draft copy; final text in issue #5
+const audiences = [
+  {
+    icon: 'lucide:siren',
+    title: 'Emergency responders',
+    text: 'See where fire activity is running above normal for the time of year.',
+  },
+  {
+    icon: 'lucide:microscope',
+    title: 'Scientists',
+    text: 'Download a consistent hotspot record, 2002 to today, for any region.',
+  },
+  {
+    icon: 'lucide:trees',
+    title: 'Land managers',
+    text: 'Plan burns and clearing around each area’s usual fire season.',
+  },
+  {
+    icon: 'lucide:fire-extinguisher',
+    title: 'Firefighters',
+    text: 'Explore an estimate of how a new fire could spread across the terrain.',
+  },
+];
+---
+
+<section id="who" class="section section--raised" aria-labelledby="who-title">
+  <div class="container">
+    <SectionHeader eyebrow="Who it’s for" title="Built for the people on the ground" headingId="who-title" />
+
+    <ul class="audience-grid" role="list">
+      {
+        audiences.map((a) => (
+          <li class="audience">
+            <span class="audience-icon">
+              <Icon name={a.icon} aria-hidden="true" />
+            </span>
+            <h3>{a.title}</h3>
+            <p class="muted">{a.text}</p>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>
+
+<style>
+  /* 1, 2 or 4 columns, so four items never leave one alone on a row */
+  .audience-grid {
+    display: grid;
+    gap: var(--space-xl) var(--space-l);
+  }
+
+  @media (min-width: 36rem) {
+    .audience-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 68rem) {
+    .audience-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  .audience > * + * {
+    margin-top: var(--space-xs);
+  }
+
+  .audience-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border: 1px solid var(--color-border-strong);
+    border-radius: 50%;
+    color: var(--color-sky);
+  }
+
+  .audience-icon :global(svg) {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+
+  .audience h3 {
+    font-size: var(--text-lg);
+  }
+</style>

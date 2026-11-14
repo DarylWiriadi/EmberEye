@@ -1,0 +1,251 @@
+---
+import { Icon } from 'astro-icon/components';
+import { pages } from '../../lib/site';
+
+// Soft circles that grow and merge into the flame red. Positions in % of the
+// stage, size in vmax, start = point in the scroll (0 to 1) where it starts growing.
+const circles = [
+  { x: 50, y: 55, size: 30, start: 0.08, color: '--color-fire-glow' },
+  { x: 24, y: 34, size: 24, start: 0.13, color: '--color-fire-hot' },
+  { x: 78, y: 30, size: 26, start: 0.17, color: '--color-fire-deep' },
+  { x: 72, y: 80, size: 22, start: 0.21, color: '--color-fire-hot' },
+  { x: 18, y: 80, size: 20, start: 0.25, color: '--color-fire-glow' },
+];
+---
+
+<!--
+  Scroll into the fire. The section is 3 screens tall and its stage sticks to
+  the viewport (CSS sticky, so no GSAP pinning and no change to anchor
+  positions above). GSAP ScrollTrigger scrubs the animation with scroll.
+
+  Without JavaScript, or with reduced motion, it's a plain red section with
+  the closing message (reduced motion gets a simple fade in).
+-->
+<section class="fire-transition" aria-labelledby="fire-transition-title" data-fire-transition>
+  <div class="ft-stage">
+    <p class="ft-intro" aria-hidden="true">Now step inside the fire record.</p>
+
+    <div class="ft-circles" aria-hidden="true">
+      {
+        circles.map((c) => (
+          <span
+            class="ft-circle"
+            data-start={c.start}
+            style={`--x: ${c.x}%; --y: ${c.y}%; --size: ${c.size}vmax; --fill: var(${c.color});`}
+          />
+        ))
+      }
+    </div>
+    <div class="ft-fill" aria-hidden="true"></div>
+
+    <div class="ft-content">
+      <p class="ft-eyebrow">Ready when you are</p>
+      <h2 id="fire-transition-title" class="ft-title">Explore the fire record</h2>
+      <p class="ft-lede">Pick any area on Earth and see two decades of burning activity.</p>
+      <div class="ft-actions">
+        <a class="btn ft-btn-primary" href={pages.dashboard}>
+          Open the dashboard
+          <Icon name="lucide:arrow-right" aria-hidden="true" />
+        </a>
+        <a class="btn ft-btn-secondary" href={pages.methodology}>How it works</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* ---------- Static version: no JS, or reduced motion ---------- */
+
+  .fire-transition {
+    position: relative;
+    background: var(--color-flame);
+    color: var(--color-on-flame);
+  }
+
+  .ft-stage {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    min-height: 100svh;
+    padding: var(--space-section) var(--gutter);
+    overflow: hidden;
+  }
+
+  .ft-intro,
+  .ft-circles,
+  .ft-fill {
+    display: none;
+  }
+
+  .ft-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-m);
+    max-width: 40rem;
+    text-align: center;
+  }
+
+  .ft-eyebrow {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--color-on-flame-muted);
+  }
+
+  .ft-title {
+    font-size: var(--text-4xl);
+    font-weight: 700;
+  }
+
+  .ft-lede {
+    font-size: var(--text-lg);
+    color: var(--color-on-flame-muted);
+  }
+
+  .ft-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-s);
+    padding-top: var(--space-2xs);
+  }
+
+  .ft-btn-primary {
+    background: var(--color-on-flame);
+    color: var(--color-flame-ink);
+  }
+
+  .ft-btn-secondary {
+    border-color: var(--color-on-flame-muted);
+    color: var(--color-on-flame);
+  }
+
+  @media (hover: hover) {
+    .ft-btn-primary:hover {
+      background: var(--color-on-flame-muted);
+      color: var(--color-flame-ink);
+    }
+
+    .ft-btn-secondary:hover {
+      background: color-mix(in srgb, var(--color-on-flame) 12%, transparent);
+      color: var(--color-on-flame);
+    }
+  }
+
+  /* ---------- Animated version (class added by the script) ---------- */
+
+  .fire-transition.is-animated {
+    height: 300vh;
+    background: var(--color-bg);
+  }
+
+  .is-animated .ft-stage {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    min-height: 0;
+    padding: var(--gutter);
+  }
+
+  .is-animated .ft-intro {
+    display: grid;
+    place-items: center;
+    position: absolute;
+    inset: 0;
+    padding: var(--gutter);
+    font-family: var(--font-display);
+    font-size: var(--text-2xl);
+    font-weight: 500;
+    text-align: center;
+    color: var(--color-text);
+  }
+
+  .is-animated .ft-circles,
+  .is-animated .ft-fill {
+    display: block;
+    position: absolute;
+    inset: 0;
+  }
+
+  .ft-circle {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    width: var(--size);
+    height: var(--size);
+    border-radius: 50%;
+    /* soft edge without a blur filter (cheaper on tablets) */
+    background: radial-gradient(closest-side, var(--fill) 62%, transparent);
+    will-change: transform;
+  }
+
+  .ft-fill {
+    background: var(--color-flame);
+    opacity: 0;
+  }
+
+  .is-animated .ft-content {
+    opacity: 0;
+    visibility: hidden;
+  }
+</style>
+
+<script>
+  import { gsap } from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+  gsap.registerPlugin(ScrollTrigger);
+  // Don't recalculate when the iPad/iPhone toolbar shows or hides while scrolling
+  ScrollTrigger.config({ ignoreMobileResize: true });
+
+  const section = document.querySelector<HTMLElement>('[data-fire-transition]');
+
+  if (section) {
+    const intro = section.querySelector('.ft-intro');
+    const fill = section.querySelector('.ft-fill');
+    const content = section.querySelector('.ft-content');
+    const circles = gsap.utils.toArray<HTMLElement>('.ft-circle', section);
+
+    const mm = gsap.matchMedia();
+
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      section.classList.add('is-animated');
+      gsap.set(circles, { xPercent: -50, yPercent: -50, scale: 0 });
+
+      // Timeline runs from 0 to 1 as the section scrolls through
+      const tl = gsap.timeline({ defaults: { ease: 'none' } });
+      tl.to(intro, { autoAlpha: 0, y: -24, duration: 0.14 }, 0.04);
+      for (const circle of circles) {
+        tl.to(circle, { scale: 4.5, duration: 0.45, ease: 'power2.out' }, Number(circle.dataset.start));
+      }
+      tl.to(fill, { opacity: 1, duration: 0.25 }, 0.48);
+      tl.fromTo(content, { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: 0.14 }, 0.76);
+      tl.to({}, { duration: 0.1 }, 0.9); // hold on the final screen
+
+      ScrollTrigger.create({
+        trigger: section,
+        start: 'top top',
+        end: 'bottom bottom',
+        scrub: 0.5,
+        animation: tl,
+      });
+
+      return () => section.classList.remove('is-animated');
+    });
+
+    mm.add('(prefers-reduced-motion: reduce)', () => {
+      gsap.from(content, {
+        autoAlpha: 0,
+        duration: 0.8,
+        ease: 'power1.out',
+        scrollTrigger: { trigger: section, start: 'top 75%', once: true },
+      });
+    });
+  }
+</script>

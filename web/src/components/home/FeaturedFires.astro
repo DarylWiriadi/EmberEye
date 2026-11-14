@@ -1,0 +1,106 @@
+---
+import SectionHeader from './SectionHeader.astro';
+import { pages } from '../../lib/site';
+
+// Placeholder list. Descriptions are drafts; check every claim before launch (issue #5).
+// Links will open each fire's preset in the dashboard once presets exist.
+const fires = [
+  {
+    name: 'Black Summer',
+    place: 'South-east Australia',
+    period: '2019–20',
+    text: 'Months of fire across the forests of New South Wales and Victoria.',
+  },
+  {
+    name: 'Amazon fires',
+    place: 'Brazil',
+    period: '2019',
+    text: 'A surge of fires across the Amazon, many linked to land clearing.',
+  },
+  {
+    name: 'California fire season',
+    place: 'United States',
+    period: '2020',
+    text: 'One of the most severe seasons in the state’s history.',
+  },
+  {
+    name: 'Canada fire season',
+    place: 'Canada',
+    period: '2023',
+    text: 'Fires from coast to coast, with smoke reaching far beyond the country.',
+  },
+];
+---
+
+<section id="featured" class="section" aria-labelledby="featured-title">
+  <div class="container">
+    <SectionHeader
+      eyebrow="Featured fires"
+      title="Start with a fire you know"
+      headingId="featured-title"
+      lede="Jump straight to a well-known event. One click sets the area, dates and map."
+    />
+
+    <ul class="fire-grid" role="list">
+      {
+        fires.map((fire) => (
+          <li class="card fire">
+            <p class="fire-meta">
+              <span>{fire.place}</span>
+              <span>{fire.period}</span>
+            </p>
+            <h3>
+              <a class="card-link" href={pages.dashboard}>
+                {fire.name}
+              </a>
+            </h3>
+            <p class="muted">{fire.text}</p>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>
+
+<style>
+  /* 1, 2 or 4 columns, so four cards never leave one alone on a row */
+  .fire-grid {
+    display: grid;
+    gap: var(--space-m);
+  }
+
+  @media (min-width: 36rem) {
+    .fire-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 68rem) {
+    .fire-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  .fire {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    padding-top: var(--space-xl);
+    background:
+      radial-gradient(120% 60% at 0% 0%, color-mix(in srgb, var(--color-ember) 16%, transparent), transparent 70%),
+      var(--color-surface-raised);
+  }
+
+  .fire-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-s);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+
+  .fire-meta span:last-child {
+    white-space: nowrap;
+  }
+</style>

@@ -1,0 +1,28 @@
+---
+interface Props {
+  eyebrow: string;
+  title: string;
+  /** id for the heading, so the section can point at it with aria-labelledby */
+  headingId: string;
+  lede?: string;
+}
+
+const { eyebrow, title, headingId, lede } = Astro.props;
+---
+
+<header class="section-header">
+  <p class="eyebrow">{eyebrow}</p>
+  <h2 id={headingId}>{title}</h2>
+  {lede && <p class="lede">{lede}</p>}
+</header>
+
+<style>
+  .section-header {
+    max-width: var(--prose-width);
+    margin-bottom: var(--space-xl);
+  }
+
+  .section-header > * + * {
+    margin-top: var(--space-s);
+  }
+</style>

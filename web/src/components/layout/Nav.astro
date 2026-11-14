@@ -1,0 +1,120 @@
+---
+import Brand from './Brand.astro';
+import { homeSections, pages } from '../../lib/site';
+
+// On the home page, section links jump in place; elsewhere they go back to the home page.
+const onHome = Astro.url.pathname === pages.home;
+const sectionHref = (id: string) => (onHome ? `#${id}` : `${pages.home}#${id}`);
+const isCurrent = (path: string) => Astro.url.pathname.replace(/\/$/, '') === path;
+---
+
+<header class="site-header">
+  <nav class="container nav" aria-label="Main">
+    <div class="nav-brand"><Brand /></div>
+
+    <ul class="nav-sections" role="list">
+      {
+        homeSections.map((section) => (
+          <li>
+            <a class="nav-link" href={sectionHref(section.id)}>
+              {section.label}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+
+    <div class="nav-actions">
+      <a
+        class="nav-link"
+        href={pages.methodology}
+        aria-current={isCurrent(pages.methodology) ? 'page' : undefined}
+      >
+        Methodology
+      </a>
+      <a class="btn btn-primary nav-cta" href={pages.dashboard}>Dashboard</a>
+    </div>
+  </nav>
+</header>
+
+<style>
+  .site-header {
+    background: var(--color-bg);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  /*
+   * Narrow screens: brand and actions on the first row, section links on a
+   * second row that scrolls sideways. Issue #3 replaces this with a menu button.
+   */
+  .nav {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      'brand actions'
+      'sections sections';
+    align-items: center;
+    column-gap: var(--space-l);
+    min-height: var(--nav-height);
+  }
+
+  .nav-brand {
+    grid-area: brand;
+  }
+
+  .nav-sections {
+    grid-area: sections;
+    display: flex;
+    gap: var(--space-m);
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: var(--space-2xs);
+  }
+
+  .nav-sections::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-actions {
+    grid-area: actions;
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: var(--space-m);
+  }
+
+  .nav-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .nav-link[aria-current='page'] {
+    color: var(--color-text);
+  }
+
+  @media (hover: hover) {
+    .nav-link:hover {
+      color: var(--color-text);
+      text-decoration: none;
+    }
+  }
+
+  /* Wide screens: everything on one row */
+  @media (min-width: 68rem) {
+    .nav {
+      grid-template-columns: auto 1fr auto;
+      grid-template-areas: 'brand sections actions';
+    }
+
+    .nav-sections {
+      justify-content: center;
+      padding-bottom: 0;
+    }
+  }
+</style>

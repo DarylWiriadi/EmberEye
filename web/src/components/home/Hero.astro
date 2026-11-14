@@ -1,0 +1,141 @@
+---
+import { Icon } from 'astro-icon/components';
+import { pages, site } from '../../lib/site';
+---
+
+<!--
+  Poster-style hero. Designed at 1440px wide and scaled from one font-size on
+  .hero, so everything inside is sized in em. Below 768px it stacks instead.
+  The rem values inside max() are deliberate floors (14px text, 44px buttons).
+-->
+<section class="hero" aria-labelledby="hero-title">
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <p class="hero-eyebrow">NASA Space Apps Challenge 2026</p>
+      <h1 id="hero-title" class="hero-title">{site.tagline}</h1>
+      <p class="hero-subtitle">
+        {site.name} merges NASA’s MODIS and VIIRS satellite hotspots into one harmonized history,
+        so you can see when and where fires burn, spot unusual seasons and compare today with the
+        past, anywhere on Earth.
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-primary hero-btn" href={pages.dashboard}>
+          Open the dashboard
+          <Icon name="lucide:arrow-right" aria-hidden="true" />
+        </a>
+        <a class="btn btn-secondary hero-btn" href={pages.methodology}>How it works</a>
+      </div>
+    </div>
+
+    <!-- Placeholder for the spreading dot-grid fire (issue #4) -->
+    <div class="hero-visual" role="img" aria-label="Fire visual placeholder">
+      <span class="hero-visual-label">Fire visual placeholder</span>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    font-size: clamp(0.625rem, 1.1111vw, 1.25rem); /* 16px at 1440px; 10px to 20px */
+    overflow: hidden;
+  }
+
+  .hero-inner {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    align-items: center;
+    gap: 5em;
+    max-width: 90em;
+    margin-inline: auto;
+    padding: 6em 5em 7em;
+  }
+
+  /* gap (not margins) so spacing follows the hero scale, not each child's font size */
+  .hero-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.75em;
+  }
+
+  .hero-eyebrow {
+    margin-bottom: -0.5em;
+  }
+
+  .hero-eyebrow {
+    font-family: var(--font-mono);
+    font-size: max(0.875rem, 0.875em);
+    font-weight: 500;
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--color-ember);
+  }
+
+  .hero-title {
+    font-size: 4.75em;
+    line-height: 1.02;
+    letter-spacing: -0.03em;
+  }
+
+  .hero-subtitle {
+    max-width: 32em;
+    font-size: max(0.875rem, 1.3125em);
+    line-height: 1.55;
+    color: var(--color-text-muted);
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 1em;
+    padding-top: 0.75em;
+  }
+
+  .hero-btn {
+    font-size: max(0.9375rem, 1.0625em);
+    min-height: max(2.75rem, 3.25em);
+    padding-inline: 1.5em;
+  }
+
+  .hero-visual {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    aspect-ratio: 1;
+    border: 0.0625em dashed var(--color-border-strong);
+    border-radius: 1.5em;
+    background:
+      radial-gradient(circle at 18% 82%, color-mix(in srgb, var(--color-ember) 28%, transparent), transparent 55%),
+      var(--color-surface);
+  }
+
+  .hero-visual-label {
+    font-family: var(--font-mono);
+    font-size: max(0.875rem, 0.875em);
+    color: var(--color-text-subtle);
+  }
+
+  /* Phones: drop the poster layout and stack text above the visual */
+  @media (max-width: 47.99rem) {
+    .hero {
+      font-size: 1rem;
+    }
+
+    .hero-inner {
+      grid-template-columns: 1fr;
+      gap: var(--space-xl);
+      padding: var(--space-2xl) var(--gutter) var(--space-3xl);
+    }
+
+    .hero-title {
+      font-size: 2.5em;
+    }
+
+    .hero-subtitle {
+      font-size: var(--text-lg);
+    }
+
+    .hero-actions {
+      flex-wrap: wrap;
+    }
+  }
+</style>
