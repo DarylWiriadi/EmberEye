@@ -294,21 +294,24 @@ const isCurrent = (path: string) => Astro.url.pathname.replace(/\/$/, '') === pa
     // ---------- Highlight the section being read (home page only) ----------
     const links = [...header.querySelectorAll<HTMLAnchorElement>('[data-section]')];
     const sections = [...document.querySelectorAll<HTMLElement>('main > section')];
+    const linkedIds = new Set(links.map((link) => link.dataset.section));
     const onHome = links.some((link) => document.getElementById(link.dataset.section ?? ''));
 
     if (onHome) {
       let queued = false;
       const update = () => {
         queued = false;
-        // The section crossing a line a quarter of the way down the screen is "current"
+        // Highlight the last linked section whose top has passed a line a quarter of
+        // the way down the screen. Sections without a nav link (Raw vs harmonized,
+        // How it's built) keep the previous link lit, so Data story stays on through them.
         const line = header.offsetHeight + window.innerHeight * 0.25;
-        let current: HTMLElement | undefined;
+        let currentId: string | undefined;
         for (const section of sections) {
-          if (section.getBoundingClientRect().top <= line) current = section;
-          else break;
+          if (section.getBoundingClientRect().top > line) break;
+          if (linkedIds.has(section.id)) currentId = section.id;
         }
         for (const link of links) {
-          if (current && link.dataset.section === current.id) link.setAttribute('aria-current', 'location');
+          if (link.dataset.section === currentId) link.setAttribute('aria-current', 'location');
           else link.removeAttribute('aria-current');
         }
       };
