@@ -111,8 +111,8 @@ nasa-space-apps-2026/
 │   ├── static/                   Sim inputs, presets, featured fires, towns (served from CDN)
 │   └── data/                     Parquet outputs from the pipeline
 │       ├── global/               Monthly counts per H3 res 5 + daily counts per H3 res 3
-│       ├── regions/              Res 7 counts + raw points for demo regions
-│       └── climatology/          Monthly medians, multi-year means
+│       ├── global/…              Also landcover_res5, weather_res3, cells_res5, days
+│       └── regions/              Offline fallback points (SE Australia only)
 │
 └── web/                          Astro site, deployed to Vercel
     ├── package.json
@@ -202,7 +202,7 @@ Raw downloads stay out of git (many GB). Only the smaller Parquet outputs go int
 | Land cover / fuel | MODIS MCD12Q1 | NASA |
 | Elevation (slope, aspect) | NASADEM / SRTM | NASA |
 | Water bodies | MODIS MOD44W water mask | NASA |
-| Basemap imagery | NASA GIBS (time-enabled tiles) | NASA |
+| Basemap imagery | NASA GIBS: static cloud-free **Blue Marble Next Generation** + **Reference_Labels** (place names, OSM-derived) | NASA |
 | Roads, small waterways, town names | OpenStreetMap / Geoscience Australia gazetteer | Not NASA (say so in the pitch) |
 
 ### Steps
@@ -286,7 +286,7 @@ Rules:
 - Vercel sets `AWS_REGION` (e.g. `ap-southeast-2`); the DuckDB R2 secret sets `REGION 'auto'` so R2 doesn't reject it. `/api/health` shows the R2 status and the last R2 error (keys masked).
 - **H3 in the API**: the API uses the `h3` Python package (cell conversion only); it does **not** need the DuckDB `h3` extension, so there is no build step and nothing is downloaded at runtime. The pipeline precomputes every H3 index the API needs (e.g. `global/cells_res5.parquet` has each cell's res 3 parent and centre lat/lng). The DuckDB `h3` extension is used only by the offline pipeline.
 - **Read-only filesystem**: open DuckDB in memory, read Parquet files by path, and set `temp_directory` to `/tmp`.
-- **Limits to respect**: a **Python function bundle is limited to 225 MB** (measured on a real deploy: the build fails with `LAMBDA_SIZE_EXCEEDED`). Target ~205 MB: global counts ~127 MB, httpfs 27 MB, SE Australia fallback points 20 MB (the only offline region), packages ~23 MB. Files the API doesn't read (and `web/`, `pipeline/`) are excluded with `excludeFiles` in the root `vercel.json` (`.vercelignore` was not applied in testing: the build log said "Removed 0 ignored files"). Individual hotspot points live in Cloudflare R2. Responses ≤ 4.5 MB unless streamed, so **stream CSV exports** and keep `/hotspots` responses small (bbox + date, with a cap).
+- **Limits to respect**: a **Python function bundle is limited to 225 MB** (measured on a real deploy: the build fails with `LAMBDA_SIZE_EXCEEDED`). Measured on a failed deploy: Python packages ~28 MB, and **everything under `api/` is bundled** (neither `.vercelignore` nor `excludeFiles` kept files out). So never put files the API doesn't read in `api/`. Currently ~219 MB: global counts ~127 MB, weather 11 MB, httpfs 27 MB, SE Australia fallback points 20 MB, land cover 1.4 MB, packages ~28 MB. Climatology and calibration ratios live in `pipeline/` instead. Individual hotspot points live in Cloudflare R2. Responses ≤ 4.5 MB unless streamed, so **stream CSV exports** and keep `/hotspots` responses small (bbox + date, with a cap).
 - **Static files** (`static/`): mount with FastAPI `StaticFiles` so Vercel serves them from its CDN.
 - **Cold starts**: the first request after idle loads Python + DuckDB. Warm the site up before presenting.
 
@@ -298,8 +298,8 @@ Switch to Fly.io (`syd`, always-on, 1 GB machine, `auto_stop_machines = "off"`, 
 
 One screen. Layout:
 
-- **Map** in the centre (MapLibre, NASA GIBS basemap matching the slider date + a light label layer). Max zoom ~12, since hotspot data is 375 m–1 km.
-  - Pick the GIBS true-colour layer **by date**: MODIS (Terra/Aqua) before 2012 → VIIRS S-NPP 2012 to 2 Nov 2026 → VIIRS NOAA-20 after 2 Nov 2026 (S-NPP imagery stopped updating then).
+- **Map** in the centre (MapLibre). Basemap: NASA GIBS **Blue Marble Next Generation**, a static cloud-free composite (daily true-colour imagery was tried and dropped: clouds hid the fires and the map reloaded on every slider step), plus GIBS **Reference_Labels** for place names (no API key; CARTO labels now need one). Max zoom ~12, since hotspot data is 375 m–1 km.
+  - deck.gl runs as a normal overlay (`MapboxOverlay` without `interleaved`): interleaved mode crashes with MapLibre 6. MapLibre's worker URL is set explicitly (`setWorkerUrl` + `?url` import) because bundling breaks its default path.
   - Recent ignition points for the simulation come from NOAA-20/21 hotspots.
 - **Calendar widget** top right.
 - **Area tools + start/end date inputs** in a top bar.

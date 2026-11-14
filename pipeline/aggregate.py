@@ -7,8 +7,10 @@ Writes to api/data/ (committed to git, so keep every file < 100 MB):
     global/cells_res5.parquet        cell5, cell3, lat, lng (centre of every cell that ever burned)
     global/days.parquet              date, sensor, gap
     global/series_monthly.parquet    whole-world monthly series: raw per sensor + harmonized
-    climatology/monthly_res5.parquet cell5, moy, median, mean, active_years
-    calibration/ratios.parquet       per region-month calibration ratios
+
+Not read by the API, so kept out of api/ (Vercel bundles all of api/, limit 225 MB):
+    pipeline/data/interim/climatology/monthly_res5.parquet  cell5, moy, median, mean, active_years
+    pipeline/reports/calibration_ratios.parquet             per region-month calibration ratios
 
 Column meanings:
     fire_days   harmonized fire cell-days (S-NPP VIIRS equivalent, H3 res 8 cells)
@@ -23,6 +25,7 @@ import config as C
 from clean import connect, run
 
 OUT = C.API_DATA_DIR
+CLIMATOLOGY_DIR = C.INTERIM_DIR / "climatology"
 H = (C.HARMONIZED_DIR / "year=*" / "*.parquet").as_posix()
 # zstd level 19: slower to write, ~10% smaller files (the API bundle has a 225 MB limit)
 PQ = "FORMAT parquet, COMPRESSION zstd, COMPRESSION_LEVEL 19, ROW_GROUP_SIZE 122880"
@@ -120,23 +123,25 @@ def climatology(con):
             FROM monthly
             WHERE year(month) BETWEEN {lo} AND {hi}
             GROUP BY ALL ORDER BY cell5, moy
-        ) TO '{(OUT / "climatology" / "monthly_res5.parquet").as_posix()}' ({PQ})
+        ) TO '{(CLIMATOLOGY_DIR / "monthly_res5.parquet").as_posix()}' ({PQ})
     """)
 
 
 def calibration(con):
     run(con, f"""COPY (SELECT * FROM '{(C.HARMONIZED_DIR / "ratios.parquet").as_posix()}'
                        ORDER BY sensor, cell2, moy)
-                 TO '{(OUT / "calibration" / "ratios.parquet").as_posix()}' ({PQ})""")
+                 TO '{(C.REPORTS_DIR / "calibration_ratios.parquet").as_posix()}' ({PQ})""")
 
 
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     t0 = time.time()
-    for sub in ("global", "climatology", "calibration"):
-        if (OUT / sub).exists():
-            shutil.rmtree(OUT / sub)
-        (OUT / sub).mkdir(parents=True)
+    # Only clear what this script writes; global/ also holds other scripts' outputs.
+    for sub in ("monthly_res5", "daily_res3"):
+        if (OUT / "global" / sub).exists():
+            shutil.rmtree(OUT / "global" / sub)
+    (OUT / "global").mkdir(parents=True, exist_ok=True)
+    CLIMATOLOGY_DIR.mkdir(parents=True, exist_ok=True)
     C.REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     con = connect()
     for name, fn in [("monthly res5", monthly_res5), ("daily res3", daily_res3), ("days", days),

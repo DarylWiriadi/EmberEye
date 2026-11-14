@@ -1,59 +1,80 @@
-import { useState } from 'react';
-import { PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useHealth } from '../../lib/api';
+import { useAppStore } from '../../store/useAppStore';
+import MapView from './map/MapView';
+import DateRangeInputs from './timeline/DateRangeInputs';
+import TimeSlider from './timeline/TimeSlider';
 import './Dashboard.css';
 
-/**
- * Dashboard layout shell (CLAUDE.md section 7). Each region is an empty slot
- * for now; the real components (MapView, CalendarWidget, TimeSlider, ...) go in.
- *
- *   ┌──────────────────────────────┬────────┐
- *   │ top bar: area tools + dates  │        │
- *   ├──────────────────────────────┤  side  │
- *   │ map              [calendar]  │ panel  │
- *   ├──────────────────────────────┤ (risk, │
- *   │ time slider                  │ fires) │
- *   ├──────────────────────────────┤        │
- *   │ stats panel                  │        │
- *   └──────────────────────────────┴────────┘
- */
-export default function Dashboard() {
-  const [sideOpen, setSideOpen] = useState(true);
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
+});
+
+function addDays(iso: string, days: number) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function DashboardShell() {
+  const [sideOpen, setSideOpen] = useState(false);
+  const health = useHealth();
+  const range = useAppStore((s) => s.dateRange);
+  const setRange = useAppStore((s) => s.setDateRange);
+  const coverage = health.data?.coverage;
+
+  useEffect(() => {
+    if (coverage && !range) setRange({ start: addDays(coverage.last, -29), end: coverage.last });
+  }, [coverage, range, setRange]);
 
   return (
-    <div className="dash" data-side-open={sideOpen}>
-      <div className="dash-top" role="toolbar" aria-label="Area and date range">
-        <div className="dash-slot">Area tools</div>
-        <div className="dash-slot">Date range</div>
-        <button
-          type="button"
-          className="dash-icon-btn"
-          onClick={() => setSideOpen((o) => !o)}
-          aria-expanded={sideOpen}
-          aria-controls="dash-side"
-          aria-label={sideOpen ? 'Hide side panel' : 'Show side panel'}
-        >
-          {sideOpen ? <PanelRightClose size={20} /> : <PanelRightOpen size={20} />}
-        </button>
-      </div>
+    <div className="dash">
+      <div className="dash-screen">
+        <section className="dash-map" aria-label="Map">
+          <MapView />
+          <div className="dash-area-tools dash-slot">Area tools</div>
 
-      <section className="dash-map" aria-label="Map">
-        <div className="dash-calendar dash-slot" aria-label="Burning calendar">
-          Calendar
+          <aside id="dash-side" className="dash-side" data-open={sideOpen} aria-label="Risk and featured fires">
+            <button
+              type="button"
+              className="dash-side-tab"
+              onClick={() => setSideOpen((o) => !o)}
+              aria-expanded={sideOpen}
+              aria-controls="dash-side-panel"
+              aria-label={sideOpen ? 'Close side panel' : 'Open side panel'}
+            >
+              {sideOpen ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+            </button>
+            <div id="dash-side-panel" className="dash-side-panel" inert={!sideOpen}>
+              <div className="dash-slot">Risk outlook</div>
+              <div className="dash-slot">Featured fires</div>
+            </div>
+          </aside>
+        </section>
+
+        <div className="dash-timebar" role="group" aria-label="Date range and time slider">
+          {coverage ? (
+            <DateRangeInputs min={coverage.first} max={coverage.last} />
+          ) : (
+            <p className="dash-timebar-msg">{health.error ? 'Data service unavailable' : 'Loading…'}</p>
+          )}
+          <TimeSlider />
         </div>
-      </section>
-
-      <div className="dash-slider dash-slot" aria-label="Time slider">
-        Time slider
       </div>
 
-      <section className="dash-stats dash-slot" aria-label="Statistics">
-        Stats
+      <section className="dash-stats" aria-label="Statistics">
+        <div className="dash-slot">Stats</div>
       </section>
-
-      <aside id="dash-side" className="dash-side" aria-label="Risk and featured fires" hidden={!sideOpen}>
-        <div className="dash-slot">Risk outlook</div>
-        <div className="dash-slot">Featured fires</div>
-      </aside>
     </div>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <DashboardShell />
+    </QueryClientProvider>
   );
 }
