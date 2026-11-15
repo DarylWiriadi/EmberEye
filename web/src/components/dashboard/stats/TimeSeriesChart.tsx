@@ -4,6 +4,13 @@ import { Download, LoaderCircle } from 'lucide-react';
 import { saveBlob, toCsv } from '../../../lib/api';
 import 'uplot/dist/uPlot.min.css';
 
+/** A chart's files, for the "Download all" ZIP. */
+export interface ChartExport {
+  csv: () => string;
+  /** null when the chart has no data. */
+  png: () => Promise<Blob | null>;
+}
+
 export interface Series {
   label: string;
   color: string;
@@ -41,6 +48,8 @@ interface Props {
   source: string;
   /** What one x step is, for the hover label: "27 Oct 2026" or "Oct 2026". */
   xUnit?: 'day' | 'month';
+  /** Hands this chart's CSV and PNG to the "Download all" ZIP (null on unmount). */
+  register?: (e: ChartExport | null) => void;
 }
 
 const AXIS = '#b0b8c4';
@@ -68,6 +77,7 @@ export default function TimeSeriesChart({
   csv,
   source,
   xUnit = 'day',
+  register,
 }: Props) {
   const [menu, setMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -188,46 +198,66 @@ export default function TimeSeriesChart({
     };
   }, [menu]);
 
-  const saveCsv = () => {
+  const csvText = () => {
     const { header, rows } = csv();
-    saveBlob(new Blob([toCsv(header, rows)], { type: 'text/csv' }), `${fileName}.csv`);
-    setMenu(false);
+    return toCsv(header, rows);
   };
 
   // The chart as drawn, on the dashboard's background, with title, legend and sources.
-  const savePng = () => {
-    const u = plot.current;
-    if (!u) return;
-    const src = u.ctx.canvas;
-    const k = src.width / u.width;
-    const pad = 16 * k;
-    const head = 30 * k;
-    const foot = 44 * k;
-    const out = document.createElement('canvas');
-    out.width = src.width + pad * 2;
-    out.height = src.height + head + foot + pad;
-    const ctx = out.getContext('2d')!;
-    ctx.fillStyle = '#131820';
-    ctx.fillRect(0, 0, out.width, out.height);
-    ctx.fillStyle = '#f4efe8';
-    ctx.font = `600 ${14 * k}px Inter Variable, Inter, sans-serif`;
-    ctx.textBaseline = 'top';
-    ctx.fillText(note ? `${title} · ${note}` : title, pad, pad);
-    ctx.drawImage(src, pad, pad + head);
-    let x = pad;
-    const y = pad + head + src.height + 10 * k;
-    ctx.font = `${11 * k}px Inter Variable, Inter, sans-serif`;
-    for (const s of series) {
-      ctx.fillStyle = s.color;
-      ctx.fillRect(x, y + 2 * k, 10 * k, 10 * k);
-      ctx.fillStyle = '#b0b8c4';
-      ctx.fillText(s.label, x + 14 * k, y);
-      x += ctx.measureText(s.label).width + 30 * k;
-    }
-    ctx.fillStyle = '#8e98a7';
-    ctx.fillText(`EmberEye · ${source}`, pad, y + 18 * k);
-    out.toBlob((b) => b && saveBlob(b, `${fileName}.png`), 'image/png');
+  const pngBlob = () =>
+    new Promise<Blob | null>((resolve) => {
+      const u = plot.current;
+      if (!u || empty) return resolve(null);
+      const src = u.ctx.canvas;
+      const k = src.width / u.width;
+      const pad = 16 * k;
+      const head = 30 * k;
+      const foot = 44 * k;
+      const out = document.createElement('canvas');
+      out.width = src.width + pad * 2;
+      out.height = src.height + head + foot + pad;
+      const ctx = out.getContext('2d')!;
+      ctx.fillStyle = '#131820';
+      ctx.fillRect(0, 0, out.width, out.height);
+      ctx.fillStyle = '#f4efe8';
+      ctx.font = `600 ${14 * k}px Inter Variable, Inter, sans-serif`;
+      ctx.textBaseline = 'top';
+      ctx.fillText(note ? `${title} · ${note}` : title, pad, pad);
+      ctx.drawImage(src, pad, pad + head);
+      let x = pad;
+      const y = pad + head + src.height + 10 * k;
+      ctx.font = `${11 * k}px Inter Variable, Inter, sans-serif`;
+      for (const s of series) {
+        ctx.fillStyle = s.color;
+        ctx.fillRect(x, y + 2 * k, 10 * k, 10 * k);
+        ctx.fillStyle = '#b0b8c4';
+        ctx.fillText(s.label, x + 14 * k, y);
+        x += ctx.measureText(s.label).width + 30 * k;
+      }
+      ctx.fillStyle = '#8e98a7';
+      ctx.fillText(`EmberEye · ${source}`, pad, y + 18 * k);
+      out.toBlob(resolve, 'image/png');
+    });
+
+  // The ZIP always gets the latest data: it calls through these refs.
+  const exportRef = useRef({ csvText, pngBlob });
+  exportRef.current = { csvText, pngBlob };
+  useEffect(() => {
+    if (!register) return;
+    register({ csv: () => exportRef.current.csvText(), png: () => exportRef.current.pngBlob() });
+    return () => register(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const saveCsv = () => {
+    saveBlob(new Blob([csvText()], { type: 'text/csv' }), `${fileName}.csv`);
     setMenu(false);
+  };
+
+  const savePng = async () => {
+    setMenu(false);
+    const b = await pngBlob();
+    if (b) saveBlob(b, `${fileName}.png`);
   };
 
   return (

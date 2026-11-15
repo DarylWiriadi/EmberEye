@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { ArrowUp, LoaderCircle } from 'lucide-react';
 import type uPlot from 'uplot';
 import { useActiveBbox, useAppStore, useSliderWindow, useSteps } from '../../../store/useAppStore';
 import { useAreaStats, useCalendar, type CalendarPeriod, type WeatherMonth } from '../../../lib/api';
 import { formatWindow, windowPhrase } from '../../../lib/steps';
-import TimeSeriesChart from './TimeSeriesChart';
+import TimeSeriesChart, { type ChartExport } from './TimeSeriesChart';
+import DownloadAll from '../downloads/DownloadAll';
 
 const DAY_LEVEL_MAX_DAYS = 366;
 const WEATHER_EMPTY = 'No available data for these months yet';
@@ -170,6 +171,15 @@ export default function StatsPanel() {
   const dateCol = level === 'day' ? 'date' : 'month';
   const weatherRows = stats.data?.weather ?? [];
   const fileName = (what: string) => `embereye_${what}_${range?.start ?? ''}_${range?.end ?? ''}`;
+  // Each chart hands its CSV and PNG to "Download all".
+  const exports = useRef(new Map<string, ChartExport>());
+  const registers = useRef(new Map<string, (e: ChartExport | null) => void>());
+  const register = (what: string) => {
+    if (!registers.current.has(what)) {
+      registers.current.set(what, (e) => (e ? exports.current.set(what, e) : exports.current.delete(what)));
+    }
+    return registers.current.get(what)!;
+  };
   const xRange: [number, number] | undefined = range
     ? [toTime(range.start), toTime(range.end) + 86_400]
     : undefined;
@@ -273,6 +283,7 @@ export default function StatsPanel() {
           updating={calStatus !== 'ready'}
           title="Fire activity (fire cell-days, harmonized)"
           fileName={fileName('fire_activity')}
+          register={register('fire_activity')}
           source={SRC_FIRE}
           xUnit={level}
           csv={() => ({ header: [dateCol, 'fire_cell_days_harmonized', 'usual_median_fire_cell_days'], rows: periods.map((p) => [p.period, p.fire_days, p.median]) })}
@@ -289,6 +300,7 @@ export default function StatsPanel() {
           updating={calStatus !== 'ready'}
           title="Compared with usual"
           fileName={fileName('compared_with_usual')}
+          register={register('compared_with_usual')}
           source={SRC_FIRE}
           xUnit={level}
           csv={() => ({ header: [dateCol, 'fire_cell_days_harmonized', 'usual_median_fire_cell_days', 'times_usual'], rows: periods.map((p) => [p.period, p.fire_days, p.median, p.ratio_to_median]) })}
@@ -309,6 +321,7 @@ export default function StatsPanel() {
           updating={calStatus !== 'ready'}
           title="Intensity (fire radiative power, MW)"
           fileName={fileName('intensity_frp')}
+          register={register('intensity_frp')}
           source={SRC_FIRE}
           xUnit={level}
           csv={() => ({ header: [dateCol, 'frp_mw_observed'], rows: periods.map((p) => [p.period, p.frp_mw]) })}
@@ -322,6 +335,7 @@ export default function StatsPanel() {
           updating={statsStatus !== 'ready'}
           title="Fire Weather Index"
           fileName={fileName('fire_weather_index')}
+          register={register('fire_weather_index')}
           source='NASA GISS GFWED (MERRA-2; GEOS-5 rescaled after Apr 2026)'
           csv={() => ({ header: ['month', 'fire_weather_index'], rows: weatherRows.map((w) => [w.month, w.fwi]) })}
           note="GFWED, monthly"
@@ -338,6 +352,7 @@ export default function StatsPanel() {
           updating={statsStatus !== 'ready'}
           title="Temperature (°C)"
           fileName={fileName('temperature')}
+          register={register('temperature')}
           source='NASA GMAO MERRA-2 monthly'
           csv={() => ({ header: ['month', 'air_temperature_c'], rows: weatherRows.map((w) => [w.month, w.t2m]) })}
           note="MERRA-2, monthly"
@@ -354,6 +369,7 @@ export default function StatsPanel() {
           updating={statsStatus !== 'ready'}
           title="Topsoil wetness (%)"
           fileName={fileName('topsoil_wetness')}
+          register={register('topsoil_wetness')}
           source='NASA GMAO MERRA-2 monthly'
           csv={() => ({ header: ['month', 'topsoil_wetness_pct'], rows: weatherRows.map((w) => [w.month, w.soil]) })}
           note="MERRA-2, monthly · lower is drier"
@@ -368,6 +384,7 @@ export default function StatsPanel() {
         />
       </div>
       {cal.error && <p className="stats-error">{(cal.error as Error).message}</p>}
+      <DownloadAll charts={exports.current} />
     </div>
   );
 }

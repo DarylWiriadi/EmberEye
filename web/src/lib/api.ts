@@ -18,7 +18,7 @@ async function failure(res: Response): Promise<Error> {
   return new Error(body?.detail ?? `Request failed (${res.status})`);
 }
 
-async function getJson<T>(path: string, params: Params = {}, signal?: AbortSignal): Promise<T> {
+export async function getJson<T>(path: string, params: Params = {}, signal?: AbortSignal): Promise<T> {
   const res = await fetch(apiUrl(path, params), { signal });
   if (!res.ok) throw await failure(res);
   return res.json() as Promise<T>;
@@ -57,6 +57,13 @@ export async function downloadFile(path: string, params: Params) {
   if (!res.ok) throw await failure(res);
   const blob = await res.blob();
   saveBlob(blob, /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ?? 'embereye.csv');
+}
+
+/** A file from the API kept in memory (for the "Download all" ZIP). */
+export async function fetchBlob(path: string, params: Params): Promise<Blob> {
+  const res = await fetch(apiUrl(path, params));
+  if (!res.ok) throw await failure(res);
+  return res.blob();
 }
 
 /** Saves a file made in the browser (chart images, chart data). */
