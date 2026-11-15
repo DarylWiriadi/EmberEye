@@ -9,6 +9,8 @@ import ShareButton from './share/ShareButton';
 import FeaturedList from './featured/FeaturedList';
 import RiskPanel from './risk/RiskPanel';
 import SimulationPanel from './simulation/SimulationPanel';
+import { useSimPlayback } from './simulation/useSimPlayback';
+import MapBars from './MapBars';
 import { useAppStore } from '../../store/useAppStore';
 import { useSimStore } from '../../store/useSimStore';
 import MapView from './map/MapView';
@@ -50,7 +52,9 @@ function DashboardShell() {
   const setRange = useAppStore((s) => s.setDateRange);
   const coverage = health.data?.coverage;
   const placing = useSimStore((s) => s.placing);
+  const revealMap = useAppStore((s) => s.revealMap);
   const sideHandle = useRef<HTMLButtonElement>(null);
+  useSimPlayback();
 
   // A shared simulation is re-run (same inputs and seed, so the same fire).
   useEffect(() => {
@@ -91,6 +95,8 @@ function DashboardShell() {
 
           {/* Phones: the full-screen side panel steps aside while an ignition point is
               picked (it would cover the map), and this bar says what to do. */}
+          <MapBars />
+
           {placing && (
             <div className="sim-place-hint" role="status">
               <span>Tap the map where the fire starts</span>
@@ -137,7 +143,7 @@ function DashboardShell() {
                   className="dash-side-close"
                   aria-label="Close side panel"
                   onClick={() => {
-                    setSideOpen(false);
+                    revealMap(); // on the Risk tab, the hexagons stay on the map
                     // Back to the edge tab once it's shown again (after this render)
                     requestAnimationFrame(() => sideHandle.current?.focus({ preventScroll: true }));
                   }}

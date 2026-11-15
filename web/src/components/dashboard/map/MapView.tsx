@@ -550,7 +550,8 @@ export default function MapView() {
   }, [simResult]);
 
   // Risk outlook hexagons, while the Risk tab is open.
-  const riskShown = useAppStore((s) => s.sideOpen && s.sideTab === 'risk' && s.riskOn);
+  // With the Risk tab open, or on phones after the panel closes (until "Exit")
+  const riskShown = useAppStore((s) => s.riskOn && s.sideTab === 'risk' && (s.sideOpen || s.riskOverlay));
   const riskMonth = useAppStore((s) => s.riskMonth);
   const riskQuery = useRisk(riskMonth, riskShown);
   const riskCells = useRiskCells(riskQuery.data);

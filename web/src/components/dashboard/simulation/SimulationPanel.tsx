@@ -1,15 +1,12 @@
 import { useEffect, useMemo } from 'react';
 import { Crosshair, LoaderCircle, Pause, Play, RotateCcw, X } from 'lucide-react';
 import { useSimStore } from '../../../store/useSimStore';
-import { useSliderWindow } from '../../../store/useAppStore';
+import { useAppStore, useSliderWindow } from '../../../store/useAppStore';
 import { useAreaStats } from '../../../lib/api';
-import { COMPASS } from '../../../lib/simulation';
+import { COMPASS, fmtHa } from '../../../lib/simulation';
 import ShareButton from '../share/ShareButton';
 import type { Bbox } from '../../../types';
 
-const HOURS_PER_SECOND = 6;
-
-const fmtHa = (ha: number) => (ha >= 1e4 ? `${Math.round(ha / 1000).toLocaleString()}k ha` : `${Math.round(ha).toLocaleString()} ha`);
 const latLon = (lat: number, lon: number) =>
   `${Math.abs(lat).toFixed(3)}°${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lon).toFixed(3)}°${lon >= 0 ? 'E' : 'W'}`;
 const fwiWord = (fwi: number) => (fwi < 10 ? 'low' : fwi < 25 ? 'moderate' : fwi < 40 ? 'high' : fwi < 55 ? 'very high' : 'extreme');
@@ -52,29 +49,15 @@ export default function SimulationPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [local?.month, s.ignition?.lat, s.ignition?.lon]);
 
-  const run = () => s.run();
+  // On phones, once the fire is simulated the full-screen panel closes so it's
+  // seen spreading on the map (a bar on the map keeps the controls).
+  const run = async () => {
+    await s.run();
+    const done = useSimStore.getState();
+    if (done.status === 'done' && done.result && !done.result.unburnable) useAppStore.getState().revealMap();
+  };
 
-  // Playback.
-  useEffect(() => {
-    if (!s.playing || !s.result) return;
-    const last = s.result.stats.length - 1;
-    let raf = 0;
-    let prev = performance.now();
-    const tick = (now: number) => {
-      const st = useSimStore.getState();
-      const next = st.hour + ((now - prev) / 1000) * HOURS_PER_SECOND;
-      prev = now;
-      if (next >= last) {
-        st.setHour(last);
-        st.setPlaying(false);
-        return;
-      }
-      st.setHour(next);
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [s.playing, s.result]);
+  // Playback runs in useSimPlayback (Dashboard.tsx), so it carries on with this tab closed.
 
   const r = s.result;
   const h = Math.round(s.hour);

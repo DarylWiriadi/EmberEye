@@ -55,6 +55,10 @@ export function frameImage(r: SimResult, hour: number, stepsPerHour: number): Im
 
 export const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 
+/** Area burned, e.g. "1,500 ha" or "182k ha". */
+export const fmtHa = (ha: number) =>
+  ha >= 1e4 ? `${Math.round(ha / 1000).toLocaleString()}k ha` : `${Math.round(ha).toLocaleString()} ha`;
+
 /** [west, south, east, north] of everything burnt by the end, for fitting the map. */
 export function burntBounds(r: SimResult): [number, number, number, number] | null {
   let r0 = r.size, r1 = -1, c0 = r.size, c1 = -1;
