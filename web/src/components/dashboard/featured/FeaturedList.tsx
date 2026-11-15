@@ -6,6 +6,7 @@ import { openFeaturedFire } from '../../../lib/openFeaturedFire';
 /** Well-known fires: one click sets the area, dates and map, on the fire's peak day. */
 export default function FeaturedList() {
   const current = useAppStore((s) => s.area?.fireId);
+  const revealMap = useAppStore((s) => s.revealMap);
 
   return (
     <div className="featured">
@@ -18,7 +19,10 @@ export default function FeaturedList() {
               type="button"
               className="featured-item"
               aria-current={current === fire.id || undefined}
-              onClick={() => openFeaturedFire(fire)}
+              onClick={() => {
+                openFeaturedFire(fire);
+                revealMap(); // phones: close the full-screen panel to show the fire
+              }}
             >
               <span className="featured-name">
                 {fire.name} <span className="featured-year">{fire.years}</span>

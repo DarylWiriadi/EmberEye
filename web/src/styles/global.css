@@ -116,6 +116,11 @@
   --duration-base: 250ms;
 }
 
+/* App pages (the dashboard) use a lower bar than the site nav (AppBar.astro) */
+html[data-nav='app'] {
+  --nav-height: 3.25rem;
+}
+
 /* ------------------------------------------------------------------ */
 /* Base                                                                */
 /* ------------------------------------------------------------------ */
@@ -317,6 +322,20 @@ a {
   flex-shrink: 0;
 }
 
+/* Shorter buttons for the nav bars: 36px to look at, with the full 44px tap
+   area kept by an invisible extension above and below */
+.btn-compact {
+  position: relative;
+  min-height: 2.25rem;
+  padding-block: 0.4em;
+}
+
+.btn-compact::after {
+  content: '';
+  position: absolute;
+  inset: -0.25rem 0;
+}
+
 .btn-primary {
   background: var(--color-ember);
   color: var(--color-on-ember);
@@ -376,6 +395,23 @@ a {
   outline: none;
 }
 
+/* Corner arrow on link cards: shows the card opens somewhere (there's no hover
+   on touch screens). Usage: <span class="card-arrow" aria-hidden="true"><Icon /></span> */
+.card-arrow {
+  position: absolute;
+  top: clamp(var(--space-m), 2.5vw, var(--space-l));
+  right: clamp(var(--space-m), 2.5vw, var(--space-l));
+  color: var(--color-text-subtle);
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.card-arrow svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
 @media (hover: hover) {
   .card:has(.card-link) {
     transition:
@@ -390,6 +426,11 @@ a {
 
   .card-link:hover {
     color: inherit;
+  }
+
+  .card:has(.card-link:hover) .card-arrow {
+    color: var(--color-ember);
+    transform: translate(2px, -2px);
   }
 }
 

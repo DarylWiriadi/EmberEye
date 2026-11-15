@@ -79,6 +79,18 @@ const year = 2026;
     margin-top: var(--space-xs);
   }
 
+  /* The EmberEye name lines up with the other columns' headings: the tops of
+     its capitals level with the tops of EXPLORE, DATA and IMPORTANT (the logo
+     sits a little higher). The name is centred in a 44px tap target and its size
+     scales with the screen, hence em (its size) and rem in the offset:
+       heading cap top 0.149rem - name's centre 1.375rem + 0.355em
+     (0.355 = cap height - (ascent - descent) / 2 for Space Grotesk, from its
+     font metrics), less 0.044rem measured on screen. The tap target keeps its
+     full size. */
+  .footer-brand :global(.brand) {
+    margin-top: calc(0.355em - 1.27rem);
+  }
+
   .footer-heading {
     font-family: var(--font-mono);
     font-size: var(--text-xs);

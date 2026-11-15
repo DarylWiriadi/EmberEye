@@ -37,7 +37,7 @@ export default function ShareButton({ label = 'Share', className = 'download-tog
   return (
     <button type="button" className={className} onClick={share} title="Copy a link to exactly this view">
       {copied ? <Check size={size} aria-hidden="true" /> : <Link size={size} aria-hidden="true" />}
-      <span aria-live="polite">{copied ? 'Link copied' : label}</span>
+      <span className="tool-label" aria-live="polite">{copied ? 'Link copied' : label}</span>
     </button>
   );
 }

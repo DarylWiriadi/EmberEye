@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import Nav from '../components/layout/Nav.astro';
+import AppBar from '../components/layout/AppBar.astro';
 import Footer from '../components/layout/Footer.astro';
 import { site } from '../lib/site';
 
@@ -10,14 +11,17 @@ interface Props {
   description?: string;
   /** Page uses scroll-reveal animations (src/scripts/reveal.ts) */
   reveal?: boolean;
+  /** 'site': the full nav with the home page's sections. 'app': a compact bar
+      with the page's name and links home (the dashboard). */
+  nav?: 'site' | 'app';
 }
 
-const { title, description = site.description, reveal = false } = Astro.props;
+const { title, description = site.description, reveal = false, nav = 'site' } = Astro.props;
 const pageTitle = title ? `${title} | ${site.name}` : `${site.name}: ${site.tagline}`;
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" data-nav={nav}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -50,7 +54,7 @@ const pageTitle = title ? `${title} | ${site.name}` : `${site.name}: ${site.tagl
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
-    <Nav />
+    {nav === 'app' ? <AppBar title={title ?? site.name} /> : <Nav />}
     <main id="main" tabindex="-1">
       <slot />
     </main>

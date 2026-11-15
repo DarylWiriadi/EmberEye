@@ -1,4 +1,5 @@
 ---
+import { Icon } from 'astro-icon/components';
 import SectionHeader from './SectionHeader.astro';
 import { pages } from '../../lib/site';
 
@@ -8,7 +9,7 @@ const fires = [
   {
     id: 'black-summer',
     name: 'Black Summer',
-    place: 'South-east Australia',
+    place: 'Australia',
     period: '2019–20',
     text: 'Months of fire across the forests of New South Wales and Victoria.',
   },
@@ -50,8 +51,7 @@ const fires = [
         fires.map((fire) => (
           <li class="card fire">
             <p class="fire-meta">
-              <span>{fire.place}</span>
-              <span>{fire.period}</span>
+              {fire.place} · <span class="fire-period">{fire.period}</span>
             </p>
             <h3>
               <a class="card-link" href={`${pages.dashboard}?fire=${fire.id}`}>
@@ -59,6 +59,9 @@ const fires = [
               </a>
             </h3>
             <p class="muted">{fire.text}</p>
+            <span class="card-arrow" aria-hidden="true">
+              <Icon name="lucide:arrow-up-right" />
+            </span>
           </li>
         ))
       }
@@ -95,16 +98,15 @@ const fires = [
       var(--color-surface-raised);
   }
 
+  /* Place and year together on the left; the corner arrow sits top-right */
   .fire-meta {
-    display: flex;
-    justify-content: space-between;
-    gap: var(--space-s);
+    padding-right: 1.75rem; /* clear of the corner arrow */
     font-family: var(--font-mono);
     font-size: var(--text-xs);
     color: var(--color-text-muted);
   }
 
-  .fire-meta span:last-child {
+  .fire-period {
     white-space: nowrap;
   }
 </style>

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Flame, History, LoaderCircle, LocateFixed } from 'lucide-react';
+import { Flame, History, LoaderCircle, LocateFixed, Map as MapIcon } from 'lucide-react';
 import { useActiveBbox, useAppStore } from '../../../store/useAppStore';
 import { useSimStore } from '../../../store/useSimStore';
 import { useRisk } from '../../../lib/api';
@@ -32,6 +32,8 @@ export default function RiskPanel() {
   const focusOn = useAppStore((s) => s.focusOn);
   const showSideTab = useAppStore((s) => s.showSideTab);
   const setPlacing = useSimStore((s) => s.setPlacing);
+  // Phones: close the full-screen panel; the hexagons stay on the map until "Exit"
+  const revealMap = useAppStore((s) => s.revealMap);
   const { bbox, picked } = useActiveBbox();
 
   const q = useRisk(month, true);
@@ -84,6 +86,12 @@ export default function RiskPanel() {
         </label>
       </div>
 
+      {riskOn && (
+        <button type="button" className="sim-btn risk-view-map" onClick={revealMap}>
+          <MapIcon size={15} aria-hidden="true" /> View on the map
+        </button>
+      )}
+
       <div className="risk-legend" aria-label="Outlook classes">
         {(data?.classes ?? ['Low', 'Moderate', 'High', 'Very high', 'Extreme']).map((name, i) => (
           <div key={name}>
@@ -107,7 +115,15 @@ export default function RiskPanel() {
             <ol className="risk-list">
               {top.map((c) => (
                 <li key={c.cell}>
-                  <button type="button" className="risk-place" onClick={() => focusOn(cellBbox(c))} title="Show on the map">
+                  <button
+                    type="button"
+                    className="risk-place"
+                    onClick={() => {
+                      focusOn(cellBbox(c));
+                      revealMap();
+                    }}
+                    title="Show on the map"
+                  >
                     <span className="risk-swatch" style={{ background: `rgb(${RISK_COLORS[c.cls].join(',')})` }} />
                     <span className="risk-name">
                       {data.classes[c.cls]} <span className="risk-score">{c.score}</span>
@@ -141,6 +157,7 @@ export default function RiskPanel() {
               setMonth('2019-12');
               setRiskOn(true);
               focusOn(BLACK_SUMMER);
+              revealMap();
             }}
           >
             <History size={15} aria-hidden="true" /> Check it: Dec 2019, before Black Summer

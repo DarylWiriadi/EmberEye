@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { create } from 'zustand';
 import type { Bbox, DateRange, MapViewState, SelectedArea } from '../types';
 import { stepOf, stepsFor, stepWindow } from '../lib/steps';
+import { isPhoneLayout } from '../lib/layout';
 
 /** A map view to restore: centre, zoom and the sender's map size in pixels. */
 export interface SharedView {
@@ -50,6 +51,13 @@ interface AppState {
   setSideOpen: (open: boolean) => void;
   /** Opens the side panel on a tab. */
   showSideTab: (tab: SideTab) => void;
+  /** Phones only (the side panel covers the screen): closes it so the map shows,
+      e.g. after picking a featured fire. On the Risk tab the hexagons stay on the
+      map (riskOverlay) until the user exits. Does nothing on wider screens. */
+  revealMap: () => void;
+  /** Phones: risk hexagons stay on the map with the side panel closed. */
+  riskOverlay: boolean;
+  setRiskOverlay: (on: boolean) => void;
   /** Moves the slider to a day; outside the date range, the range becomes that day's month. */
   jumpToDate: (iso: string, bounds?: DateRange) => void;
   /** Risk outlook: shown on the map while its tab is open; month null = the latest. */
@@ -119,6 +127,13 @@ export const useAppStore = create<AppState>()((set, get) => ({
   sideTab: 'calendar',
   setSideOpen: (sideOpen) => set({ sideOpen }),
   showSideTab: (sideTab) => set({ sideTab, sideOpen: true }),
+  revealMap: () => {
+    if (!isPhoneLayout()) return;
+    const { sideTab, riskOn } = get();
+    set({ sideOpen: false, riskOverlay: sideTab === 'risk' && riskOn });
+  },
+  riskOverlay: false,
+  setRiskOverlay: (riskOverlay) => set({ riskOverlay }),
   jumpToDate: (iso, bounds) => {
     let range = get().dateRange;
     if (!range || iso < range.start || iso > range.end) {

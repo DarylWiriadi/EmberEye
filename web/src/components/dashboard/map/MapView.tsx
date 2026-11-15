@@ -550,7 +550,8 @@ export default function MapView() {
   }, [simResult]);
 
   // Risk outlook hexagons, while the Risk tab is open.
-  const riskShown = useAppStore((s) => s.sideOpen && s.sideTab === 'risk' && s.riskOn);
+  // With the Risk tab open, or on phones after the panel closes (until "Exit")
+  const riskShown = useAppStore((s) => s.riskOn && s.sideTab === 'risk' && (s.sideOpen || s.riskOverlay));
   const riskMonth = useAppStore((s) => s.riskMonth);
   const riskQuery = useRisk(riskMonth, riskShown);
   const riskCells = useRiskCells(riskQuery.data);
@@ -653,8 +654,10 @@ export default function MapView() {
         onMove={(e) => setZoomNow((z) => (Math.abs(z - e.viewState.zoom) >= 0.1 ? e.viewState.zoom : z))}
       >
         <DeckOverlay layers={layers} getTooltip={getTooltip} pickingRadius={5} />
-        <NavigationControl position="bottom-right" showCompass={false} />
+        {/* Bottom controls stack upwards in the order added: the credits line sits
+            at the very bottom, the zoom buttons above it (clear of the legend) */}
         <AttributionControl position="bottom-right" compact />
+        <NavigationControl position="bottom-right" showCompass={false} />
       </Map>
       <MapStatus
         message={status}

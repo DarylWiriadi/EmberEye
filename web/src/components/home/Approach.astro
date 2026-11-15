@@ -44,7 +44,7 @@ const features = [
               </a>
             </h3>
             <p class="muted">{f.text}</p>
-            <span class="feature-arrow" aria-hidden="true">
+            <span class="card-arrow" aria-hidden="true">
               <Icon name="lucide:arrow-up-right" />
             </span>
           </li>
@@ -88,26 +88,5 @@ const features = [
     height: 1.5rem;
   }
 
-  /* Corner arrow: shows the card opens the dashboard (no hover on touch screens) */
-  .feature-arrow {
-    position: absolute;
-    top: clamp(var(--space-m), 2.5vw, var(--space-l));
-    right: clamp(var(--space-m), 2.5vw, var(--space-l));
-    color: var(--color-text-subtle);
-    transition:
-      color var(--duration-fast) var(--ease-out),
-      transform var(--duration-fast) var(--ease-out);
-  }
-
-  .feature-arrow :global(svg) {
-    width: 1.25rem;
-    height: 1.25rem;
-  }
-
-  @media (hover: hover) {
-    .feature:has(.card-link:hover) .feature-arrow {
-      color: var(--color-ember);
-      transform: translate(2px, -2px);
-    }
-  }
+  /* The corner arrow (.card-arrow) is styled in global.css, shared with Featured fires */
 </style>

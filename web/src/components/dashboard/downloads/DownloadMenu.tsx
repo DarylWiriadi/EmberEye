@@ -122,7 +122,7 @@ export default function DownloadMenu() {
         disabled={!ready}
       >
         <Download size={18} aria-hidden="true" />
-        Download
+        <span className="tool-label">Download</span>
       </button>
       {open && ready && (
         <div id="download-panel" className="download-panel">

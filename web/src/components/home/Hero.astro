@@ -1,6 +1,7 @@
 ---
 import { Icon } from 'astro-icon/components';
 import HeroMap from './HeroMap.astro';
+import SimPreview from './SimPreview.astro';
 import SplitWords from './SplitWords.astro';
 import { pages, site } from '../../lib/site';
 ---
@@ -23,7 +24,7 @@ import { pages, site } from '../../lib/site';
   <HeroMap />
   <div class="hero-inner">
     <div class="hero-copy" data-reveal-group="load">
-      <p class="hero-eyebrow">NASA Space Apps Challenge 2026</p>
+      <p class="hero-eyebrow">Track fire activity across time and place</p>
       <h1 id="hero-title" class="hero-title" aria-label={site.tagline} data-reveal-words>
         <SplitWords text={site.tagline} />
       </h1>
@@ -41,9 +42,9 @@ import { pages, site } from '../../lib/site';
       </div>
     </div>
 
-    <!-- Placeholder: a snippet of the dashboard goes here once it's built -->
-    <div class="hero-visual" data-reveal="load" role="img" aria-label="Dashboard preview placeholder">
-      <span class="hero-visual-label">Dashboard preview coming soon</span>
+    <!-- A live preview of the dashboard's fire-spread simulation (SimPreview.astro) -->
+    <div class="hero-visual" data-reveal="load">
+      <SimPreview />
     </div>
   </div>
 </section>
@@ -116,6 +117,7 @@ import { pages, site } from '../../lib/site';
     letter-spacing: var(--tracking-wide);
     text-transform: uppercase;
     color: var(--color-ember);
+    text-wrap: balance; /* if it wraps (narrow screens), two even lines */
   }
 
   .hero-title {
@@ -144,24 +146,16 @@ import { pages, site } from '../../lib/site';
   }
 
   .hero-visual {
-    display: grid;
-    place-items: center;
+    position: relative;
     width: 100%;
     aspect-ratio: 1;
-    border: 0.0625em dashed var(--color-border-strong);
+    overflow: hidden;
+    border: 0.0625em solid var(--color-border-strong);
     border-radius: 1.5em;
-    /* Frosted glass, so the fire map glows through behind it */
-    background:
-      radial-gradient(circle at 18% 82%, color-mix(in srgb, var(--color-ember) 22%, transparent), transparent 55%),
-      color-mix(in srgb, var(--color-surface) 30%, transparent);
-    -webkit-backdrop-filter: blur(0.3em);
-    backdrop-filter: blur(0.3em);
-  }
-
-  .hero-visual-label {
-    font-family: var(--font-mono);
-    font-size: max(0.875rem, calc(0.875 * var(--hero-text)));
-    color: var(--color-text-subtle);
+    /* See-through, so the world fire map behind the hero shows through the
+       preview's terrain (SimPreview.astro dims it) */
+    background: color-mix(in srgb, var(--color-surface) 20%, transparent);
+    box-shadow: 0 1.5em 4em -1em rgb(0 0 0 / 0.6);
   }
 
   /* Phones (touch screens under 768px), or any window under 480px: drop the

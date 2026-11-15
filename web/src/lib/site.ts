@@ -8,7 +8,7 @@ export const site = {
     'history comparisons and a fire-spread simulation. NASA Space Apps Challenge 2026.',
   github: 'https://github.com/DarylWiriadi/EmberEye',
   firms: 'https://firms.modaps.eosdis.nasa.gov/',
-  team: ['Daryl Allen Wiriadi', 'Aidan Halim'],
+  team: ['Daryl Allen Wiriadi', 'Nicholas Aidan Halim'],
 };
 
 export const pages = {
