@@ -104,6 +104,12 @@ const href = `${pages.dashboard}?${sim.dashboardQuery}`;
     object-fit: fill;
   }
 
+  /* The terrain is see-through, so the hero's world map shows behind it
+     (the fire itself stays fully bright) */
+  .sim-map > :global(.sim-terrain) {
+    opacity: 0.55;
+  }
+
   /* The link covers the panel; the map and readout sit above it but let taps
      through (pointer-events: none), except the play/pause button */
   .sim-link {

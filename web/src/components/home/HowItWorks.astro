@@ -102,7 +102,7 @@ const payload = (months: string[], lines: Line[]) =>
       lede="VIIRS sees smaller fires than MODIS, so raw counts jump fourfold in 2012. We put twenty years on one scale, then tested it on years the method never saw."
     />
 
-    <figure class="hw-figure">
+    <figure class="hw-figure" data-reveal>
       <figcaption class="hw-caption">
         <span>Fire activity worldwide, per month (fire cell-days)</span>
         <span class="hw-legend" aria-hidden="true">
@@ -140,7 +140,7 @@ const payload = (months: string[], lines: Line[]) =>
       <p class="hw-note">From 2012 the harmonized record is VIIRS Suomi NPP itself, so the two lines overlap.</p>
     </figure>
 
-    <ol class="hw-steps" role="list">
+    <ol class="hw-steps" role="list" data-reveal-group>
       <li>
         <h3>Count fire cell-days</h3>
         <p class="muted">One ~0.7&nbsp;km² hexagon burning on one day counts once, whichever sensor saw it.</p>
@@ -155,7 +155,7 @@ const payload = (months: string[], lines: Line[]) =>
       </li>
     </ol>
 
-    <div class="hw-proof">
+    <div class="hw-proof" data-reveal-group>
       <div>
         <p class="eyebrow">Did it work?</p>
         <h3 class="hw-proof-title">We hid 2017–2019 and predicted it</h3>

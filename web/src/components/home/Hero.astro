@@ -152,7 +152,9 @@ import { pages, site } from '../../lib/site';
     overflow: hidden;
     border: 0.0625em solid var(--color-border-strong);
     border-radius: 1.5em;
-    background: var(--color-surface);
+    /* See-through, so the world fire map behind the hero shows through the
+       preview's terrain (SimPreview.astro dims it) */
+    background: color-mix(in srgb, var(--color-surface) 20%, transparent);
     box-shadow: 0 1.5em 4em -1em rgb(0 0 0 / 0.6);
   }
 
