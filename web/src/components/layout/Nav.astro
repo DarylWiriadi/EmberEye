@@ -339,7 +339,7 @@ const sectionHref = (id: string) => (onHome ? `#${id}` : `${pages.home}#${id}`);
 
     // ---------- Highlight the section being read (home page only) ----------
     const links = [...header.querySelectorAll<HTMLAnchorElement>('[data-section]')];
-    const sections = [...document.querySelectorAll<HTMLElement>('main > section')];
+    const sections = [...document.querySelectorAll<HTMLElement>('main section')];
     const linkedIds = new Set(links.map((link) => link.dataset.section));
     const onHome = links.some((link) => document.getElementById(link.dataset.section ?? ''));
 

@@ -1,4 +1,6 @@
 ---
+import SplitWords from './SplitWords.astro';
+
 interface Props {
   eyebrow: string;
   title: string;
@@ -12,7 +14,8 @@ const { eyebrow, title, headingId, lede } = Astro.props;
 
 <header class="section-header" data-reveal-group>
   <p class="eyebrow">{eyebrow}</p>
-  <h2 id={headingId}>{title}</h2>
+  <!-- Words rise in one by one (src/scripts/reveal.ts); aria-label keeps it one phrase for screen readers -->
+  <h2 id={headingId} aria-label={title} data-reveal-words><SplitWords text={title} /></h2>
   {lede && <p class="lede">{lede}</p>}
 </header>
 

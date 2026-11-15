@@ -7,6 +7,10 @@ import icon from 'astro-icon';
 // https://astro.build/config
 export default defineConfig({
   integrations: [react(), icon()],
+  server: {
+    // Lets the dev and preview servers load through GitHub Codespaces' forwarded URLs
+    allowedHosts: ['.app.github.dev'],
+  },
   vite: {
     server: {
       // In development, forward /api to the local FastAPI server

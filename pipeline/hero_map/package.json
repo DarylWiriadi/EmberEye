@@ -1,0 +1,13 @@
+{
+  "name": "embereye-hero-map-land",
+  "private": true,
+  "description": "Builds land-1deg.txt (the land dots of the home page map). Only needed if the land mask changes.",
+  "type": "module",
+  "scripts": {
+    "land": "node land.mjs"
+  },
+  "dependencies": {
+    "topojson-client": "3.1.0",
+    "world-atlas": "2.0.2"
+  }
+}
