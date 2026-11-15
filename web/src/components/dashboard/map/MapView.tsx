@@ -38,6 +38,7 @@ import { logScale, viridis } from '../../../lib/colors';
 import type { Bbox } from '../../../types';
 import MapStatus from './MapStatus';
 import { prefetchTiles, viaStore } from '../../../lib/tileCache';
+import { setMapHandle } from '../../../lib/mapHandle';
 
 const INITIAL_ZOOM = 1.6;
 // Outlines: merged H3 res 7 cells (~5 km2) with a detection in the last 30 days.
@@ -165,6 +166,23 @@ export default function MapView() {
   );
 
   const playing = useAppStore((s) => s.playing);
+
+  // A shared link's view: the same centre, and the same zoom unless this screen is
+  // smaller, then zoomed out just enough to show everything the sender saw.
+  const setPendingView = useAppStore((s) => s.setPendingView);
+  const applyPendingView = useCallback(
+    (map: MapLibreMap) => {
+      const pv = useAppStore.getState().pendingView;
+      if (!pv) return;
+      const el = map.getContainer();
+      const fit = Math.log2(Math.min(el.clientWidth / pv.width, el.clientHeight / pv.height));
+      map.jumpTo({ center: [pv.lng, pv.lat], zoom: Math.min(12, Math.max(1, pv.zoom + Math.min(0, fit))) });
+      setPendingView(null);
+      setView({ bbox: boundsOf(map), zoom: map.getZoom() });
+    },
+    [setPendingView, setView],
+  );
+  useEffect(() => () => setMapHandle(null), []);
 
   // Live zoom (not debounced): dots grow smoothly while zooming, and zooming out
   // drops zoomed-in detail at once. Data requests still wait for the map to stop.
@@ -439,7 +457,7 @@ export default function MapView() {
   useEffect(() => {
     const map = mapRef.current?.getMap();
     if (!selectedArea || selectedArea.source === 'rectangle') return;
-    if (!map) {
+    if (!map || useAppStore.getState().pendingView) {
       setFlying(false);
       return;
     }
@@ -524,7 +542,7 @@ export default function MapView() {
 
   // A finished simulation: fit the map to everything it burnt.
   useEffect(() => {
-    if (!simResult || simResult.unburnable) return;
+    if (!simResult || simResult.unburnable || !useSimStore.getState().fit) return;
     const b = burntBounds(simResult);
     if (!b) return;
     const instant = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -627,6 +645,8 @@ export default function MapView() {
           // Two-finger twist on touchscreens would rotate the map; north stays up.
           e.target.touchZoomRotate.disableRotation();
           e.target.keyboard.disableRotation();
+          setMapHandle(e.target);
+          applyPendingView(e.target);
           publishView(e);
         }}
         onMoveEnd={publishView}

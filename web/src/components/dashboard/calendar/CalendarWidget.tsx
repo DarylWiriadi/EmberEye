@@ -4,7 +4,6 @@ import { useActiveBbox, useAppStore, useSliderWindow } from '../../../store/useA
 import { useCalendar, useHealth, type CalendarPeriod } from '../../../lib/api';
 import { DIVERGING_CSS, VIRIDIS_CSS, diverging, viridis } from '../../../lib/colors';
 
-type Mode = 'counts' | 'anomaly';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -37,8 +36,10 @@ export default function CalendarWidget() {
   const jumpToDate = useAppStore((s) => s.jumpToDate);
   const win = useSliderWindow();
 
-  const [mode, setMode] = useState<Mode>('counts');
-  const [month, setMonth] = useState<string | null>(null);
+  const mode = useAppStore((s) => s.calMode);
+  const setMode = useAppStore((s) => s.setCalMode);
+  const month = useAppStore((s) => s.calMonth);
+  const setMonth = useAppStore((s) => s.setCalMonth);
   const [hover, setHover] = useState<string | null>(null);
   const [drag, setDrag] = useState<{ from: string; to: string } | null>(null);
   const anchor = useRef<string | null>(null);

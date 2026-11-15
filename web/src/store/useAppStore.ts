@@ -3,6 +3,15 @@ import { create } from 'zustand';
 import type { Bbox, DateRange, MapViewState, SelectedArea } from '../types';
 import { stepOf, stepsFor, stepWindow } from '../lib/steps';
 
+/** A map view to restore: centre, zoom and the sender's map size in pixels. */
+export interface SharedView {
+  lng: number;
+  lat: number;
+  zoom: number;
+  width: number;
+  height: number;
+}
+
 export type SideTab = 'calendar' | 'simulate' | 'featured' | 'risk';
 
 interface AppState {
@@ -53,6 +62,14 @@ interface AppState {
   showTrail: boolean;
   setShowHotspots: (on: boolean) => void;
   setShowTrail: (on: boolean) => void;
+  /** Burning calendar: colour mode, and the month open in day view (null = all years). */
+  calMode: 'counts' | 'anomaly';
+  calMonth: string | null;
+  setCalMode: (mode: 'counts' | 'anomaly') => void;
+  setCalMonth: (month: string | null) => void;
+  /** A shared link's map view, applied once the map has loaded. */
+  pendingView: SharedView | null;
+  setPendingView: (view: SharedView | null) => void;
   /** A place to move the map to without picking it as the area. */
   focus: { bbox: Bbox; id: number } | null;
   focusOn: (bbox: Bbox) => void;
@@ -119,6 +136,12 @@ export const useAppStore = create<AppState>()((set, get) => ({
   riskMonth: null,
   setRiskOn: (riskOn) => set({ riskOn }),
   setRiskMonth: (riskMonth) => set({ riskMonth }),
+  calMode: 'counts',
+  calMonth: null,
+  setCalMode: (calMode) => set({ calMode }),
+  setCalMonth: (calMonth) => set({ calMonth }),
+  pendingView: null,
+  setPendingView: (pendingView) => set({ pendingView }),
   showHotspots: true,
   showTrail: true,
   setShowHotspots: (showHotspots) => set({ showHotspots }),

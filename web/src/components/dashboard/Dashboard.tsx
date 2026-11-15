@@ -4,6 +4,8 @@ import { CalendarDays, ChevronLeft, ChevronRight, Flame, Gauge, Star } from 'luc
 import { useHealth } from '../../lib/api';
 import { featuredFire } from '../../lib/featuredFires';
 import { openFeaturedFire } from '../../lib/openFeaturedFire';
+import { applySharedLink } from '../../lib/shareUrl';
+import ShareButton from './share/ShareButton';
 import FeaturedList from './featured/FeaturedList';
 import RiskPanel from './risk/RiskPanel';
 import SimulationPanel from './simulation/SimulationPanel';
@@ -21,6 +23,9 @@ import './Dashboard.css';
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
 });
+
+// A shared link (?v=...) restores the sender's view before anything renders.
+const shared = applySharedLink(window.location.search);
 
 function addDays(iso: string, days: number) {
   const d = new Date(`${iso}T00:00:00Z`);
@@ -44,6 +49,11 @@ function DashboardShell() {
   const range = useAppStore((s) => s.dateRange);
   const setRange = useAppStore((s) => s.setDateRange);
   const coverage = health.data?.coverage;
+
+  // A shared simulation is re-run (same inputs and seed, so the same fire).
+  useEffect(() => {
+    if (shared?.simHour != null) useSimStore.getState().run(shared.simHour);
+  }, []);
 
   // Picking an ignition point only makes sense with the Simulate tab open.
   useEffect(() => {
@@ -69,6 +79,7 @@ function DashboardShell() {
           <div className="dash-area-tools">
             <AreaToolbar />
             <DownloadMenu />
+            <ShareButton />
           </div>
 
           <aside id="dash-side" className="dash-side" data-open={sideOpen} aria-label="Calendar, risk and featured fires">

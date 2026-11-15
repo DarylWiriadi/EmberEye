@@ -3,7 +3,8 @@ import { Crosshair, LoaderCircle, Pause, Play, RotateCcw, X } from 'lucide-react
 import { useSimStore } from '../../../store/useSimStore';
 import { useSliderWindow } from '../../../store/useAppStore';
 import { useAreaStats } from '../../../lib/api';
-import { COMPASS, runSimulation } from '../../../lib/simulation';
+import { COMPASS } from '../../../lib/simulation';
+import ShareButton from '../share/ShareButton';
 import type { Bbox } from '../../../types';
 
 const HOURS_PER_SECOND = 6;
@@ -43,7 +44,7 @@ export default function SimulationPanel() {
 
   // Prefill once per ignition point.
   useEffect(() => {
-    if (!local) return;
+    if (!local || useSimStore.getState().restored) return;
     const patch: Parameters<typeof s.setInputs>[0] = {};
     if (local.windFrom != null) patch.windFromDeg = Math.round(local.windFrom / 45) * 45 % 360;
     if (local.fwi != null) patch.fwi = Math.round(local.fwi);
@@ -51,16 +52,7 @@ export default function SimulationPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [local?.month, s.ignition?.lat, s.ignition?.lon]);
 
-  const run = async () => {
-    if (!s.ignition) return;
-    s.start();
-    try {
-      const { result, ms } = await runSimulation({ ...s.ignition, ...s.inputs });
-      useSimStore.getState().finish(result, ms);
-    } catch (e) {
-      useSimStore.getState().fail((e as Error).message);
-    }
-  };
+  const run = () => s.run();
 
   // Playback.
   useEffect(() => {
@@ -147,7 +139,9 @@ export default function SimulationPanel() {
             <input type="range" min={0} max={80} step={1} value={s.inputs.fwi} onChange={(e) => s.setInputs({ fwi: Number(e.target.value) })} />
           </label>
           <p className="sim-note sim-wide">
-            {local?.month
+            {s.restored
+              ? 'Inputs from a shared link; adjust freely.'
+              : local?.month
               ? `Prefilled from ${local.month} weather here (monthly averages); adjust freely.`
               : weather.isFetching
                 ? 'Looking up this month’s weather here…'
@@ -231,9 +225,12 @@ export default function SimulationPanel() {
             FWI {s.ran.fwi}, {s.ran.hours} h, seed {s.ran.seed}
             {s.ms != null ? ` · computed in ${(s.ms / 1000).toFixed(1)} s` : ''}.
           </p>
-          <button type="button" className="sim-btn" onClick={s.clear}>
-            <X size={15} aria-hidden="true" /> Clear simulation
-          </button>
+          <div className="sim-row">
+            {!r.unburnable && <ShareButton label="Share this simulation" className="sim-btn" size={15} />}
+            <button type="button" className="sim-btn" onClick={s.clear}>
+              <X size={15} aria-hidden="true" /> Clear simulation
+            </button>
+          </div>
         </div>
       )}
     </div>
