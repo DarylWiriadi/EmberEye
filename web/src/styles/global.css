@@ -116,6 +116,11 @@
   --duration-base: 250ms;
 }
 
+/* App pages (the dashboard) use a lower bar than the site nav (AppBar.astro) */
+html[data-nav='app'] {
+  --nav-height: 3.25rem;
+}
+
 /* ------------------------------------------------------------------ */
 /* Base                                                                */
 /* ------------------------------------------------------------------ */

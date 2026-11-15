@@ -79,6 +79,13 @@ const year = 2026;
     margin-top: var(--space-xs);
   }
 
+  /* The logo link is a 44px tap target with the 32px logo centred in it, which
+     put the logo below the other columns' headings. Pulling it up by the extra
+     space lines the logo's top up with the headings (the tap target stays). */
+  .footer-brand :global(.brand) {
+    margin-top: calc((2rem - 2.75rem) / 2);
+  }
+
   .footer-heading {
     font-family: var(--font-mono);
     font-size: var(--text-xs);

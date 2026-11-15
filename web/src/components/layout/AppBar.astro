@@ -1,0 +1,124 @@
+---
+import { Icon } from 'astro-icon/components';
+import Brand from './Brand.astro';
+import { pages } from '../../lib/site';
+
+interface Props {
+  /** The page's name, shown after the logo (and its main heading) */
+  title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!--
+  Compact bar for app pages (the dashboard), instead of the site nav: the logo
+  (links home), the page's name, and two ways back to the home page. No section
+  links (they belong to the home page) and no Dashboard button (you're on it).
+  Lower than the site nav (--nav-height in BaseLayout), so the map gets more room.
+-->
+<header class="app-bar">
+  <div class="app-bar-start">
+    <Brand />
+    <span class="app-bar-sep" aria-hidden="true">/</span>
+    <h1 class="app-bar-title">{title}</h1>
+  </div>
+  <nav class="app-bar-links" aria-label="Main">
+    <a class="app-bar-link" href={`${pages.home}#how-it-works`}>How it works</a>
+    <a class="btn btn-secondary app-bar-home" href={pages.home}>
+      <Icon name="lucide:arrow-left" aria-hidden="true" />
+      Home
+    </a>
+  </nav>
+</header>
+
+<style>
+  .app-bar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-m);
+    height: var(--nav-height);
+    padding-inline: 16px;
+    background: color-mix(in srgb, var(--color-bg) 85%, transparent);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    backdrop-filter: blur(12px) saturate(140%);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .app-bar-start {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+  }
+
+  .app-bar-sep {
+    color: var(--color-border-strong);
+    font-size: var(--text-lg);
+  }
+
+  .app-bar-title {
+    overflow: hidden;
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    font-weight: 500;
+    letter-spacing: var(--tracking-tight);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: var(--color-text-muted);
+  }
+
+  .app-bar-links {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: var(--space-m);
+  }
+
+  .app-bar-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    text-decoration: none;
+  }
+
+  @media (hover: hover) {
+    .app-bar-link:hover {
+      color: var(--color-text);
+    }
+  }
+
+  .app-bar-home {
+    padding-inline: 1em 1.2em;
+  }
+
+  /* Phones: just the logo, the page name and Home */
+  @media (max-width: 40rem) {
+    .app-bar-link {
+      display: none;
+    }
+  }
+
+  /* Small phones: the logo and Home only; the page name stays the page's
+     heading for screen readers */
+  @media (max-width: 26rem) {
+    .app-bar-sep {
+      display: none;
+    }
+
+    .app-bar-title {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
+</style>
