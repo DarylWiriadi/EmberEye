@@ -2,28 +2,62 @@
 import { Icon } from 'astro-icon/components';
 import { pages } from '../../lib/site';
 
-// Soft circles that grow and merge into the flame red. Positions in % of the
-// stage, size in vmax, start = point in the scroll (0 to 1) where it starts growing.
+// Soft circles that bloom and merge into the red. Positions in % of the stage,
+// size in vmax, start = how far the page has scrolled into the section (in
+// screen heights x 100, see the script) when each starts growing.
 const circles = [
-  { x: 50, y: 55, size: 30, start: 0.08, color: '--color-fire-glow' },
-  { x: 24, y: 34, size: 24, start: 0.13, color: '--color-fire-hot' },
-  { x: 78, y: 30, size: 26, start: 0.17, color: '--color-fire-deep' },
-  { x: 72, y: 80, size: 22, start: 0.21, color: '--color-fire-hot' },
-  { x: 18, y: 80, size: 20, start: 0.25, color: '--color-fire-glow' },
+  { x: 50, y: 55, size: 30, start: 72, color: '--color-fire-glow' },
+  { x: 24, y: 34, size: 24, start: 77, color: '--color-fire-hot' },
+  { x: 78, y: 30, size: 26, start: 82, color: '--color-fire-deep' },
+  { x: 72, y: 80, size: 22, start: 86, color: '--color-fire-hot' },
+  { x: 18, y: 80, size: 20, start: 90, color: '--color-fire-glow' },
 ];
+
+// Sparks drifting up during the build-up. Fixed pseudo-random values so the
+// page is identical on every build.
+const embers = Array.from({ length: 24 }, (_, i) => ({
+  x: (i * 37 + 11) % 100, // % across
+  size: 2 + ((i * 7) % 4) * 0.5, // px, bright core (the glow around it is 4x)
+  rise: 7 + ((i * 5) % 6), // seconds to rise
+  delay: -((i * 1.7) % 9), // negative: already mid-flight on load
+  sway: (i % 2 ? 1 : -1) * (0.6 + ((i * 3) % 5) * 0.25), // rem, side to side
+  swayTime: 1.6 + ((i * 11) % 7) * 0.2, // seconds per sway
+  flicker: 0.3 + ((i * 13) % 5) * 0.1, // seconds per flicker
+}));
 ---
 
 <!--
-  Scroll into the fire. The section is 2 screens tall and its stage sticks to
-  the viewport (CSS sticky, so no GSAP pinning and no change to anchor
-  positions above). GSAP ScrollTrigger scrubs the animation with scroll.
+  Scroll into the fire. The section is 1.35 screens tall and its stage sticks
+  to the viewport (CSS sticky, so no GSAP pinning and no change to anchor
+  positions above). GSAP ScrollTrigger scrubs one timeline over the section.
+  Timings are in how far the page has scrolled into the section, in % of the
+  screen height (0 = section top at the bottom of the screen):
+
+      0-62   the intro line scrolls in right after the section above and
+             settles in the middle of the screen; sparks drift up and a glow
+             builds on the horizon
+     72-108  the fire rises: circles bloom from below (the stage locks at
+             100), the intro line drifts up and away, the circles merge into
+             a glowing red
+    106-118  the closing message rises in, then holds until 135
+        end  the red fades into the footer instead of a hard edge
 
   Without JavaScript, or with reduced motion, it's a plain red section with
   the closing message (reduced motion gets a simple fade in).
 -->
 <section class="fire-transition" aria-labelledby="fire-transition-title" data-fire-transition>
   <div class="ft-stage">
-    <p class="ft-intro" aria-hidden="true">Now step inside the fire record.</p>
+    <div class="ft-embers" aria-hidden="true">
+      {
+        embers.map((e) => (
+          <span
+            class="ft-ember"
+            style={`--x: ${e.x}%; --size: ${e.size}px; --rise: ${e.rise}s; --delay: ${e.delay.toFixed(1)}s; --sway: ${e.sway.toFixed(2)}rem; --sway-time: ${e.swayTime.toFixed(1)}s; --flicker: ${e.flicker.toFixed(1)}s;`}
+          />
+        ))
+      }
+    </div>
+    <div class="ft-horizon-clip" aria-hidden="true"><div class="ft-horizon"></div></div>
 
     <div class="ft-circles" aria-hidden="true">
       {
@@ -31,7 +65,7 @@ const circles = [
           <span
             class="ft-circle"
             data-start={c.start}
-            style={`--x: ${c.x}%; --y: ${c.y}%; --size: ${c.size}vmax; --fill: var(${c.color});`}
+            style={`--x: ${c.x}%; --y: ${c.y}vh; --size: ${c.size}vmax; --fill: var(${c.color});`}
           />
         ))
       }
@@ -51,6 +85,12 @@ const circles = [
       </div>
     </div>
   </div>
+
+  <!-- Outside the stage, so the line scrolls in right after the section above
+       (like normal content) and then holds in the middle of the screen -->
+  <div class="ft-intro-track" aria-hidden="true">
+    <p class="ft-intro">Now step inside the fire record.</p>
+  </div>
 </section>
 
 <style>
@@ -60,6 +100,20 @@ const circles = [
     position: relative;
     background: var(--color-flame);
     color: var(--color-on-flame);
+  }
+
+  /* The red fades into the footer colour at the very bottom, so leaving the
+     section isn't a hard edge. Sits above the fire layers, below the text. */
+  .fire-transition::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    height: 16vh;
+    background: linear-gradient(to bottom, transparent, var(--color-surface));
+    pointer-events: none;
   }
 
   .ft-stage {
@@ -72,7 +126,9 @@ const circles = [
     overflow: hidden;
   }
 
-  .ft-intro,
+  .ft-embers,
+  .ft-horizon-clip,
+  .ft-intro-track,
   .ft-circles,
   .ft-fill {
     display: none;
@@ -141,8 +197,8 @@ const circles = [
   /* ---------- Animated version (class added by the script) ---------- */
 
   .fire-transition.is-animated {
-    height: 200vh; /* 1 screen of scrolling drives the whole animation */
-    background: var(--color-bg);
+    height: 135vh; /* same as LENGTH in the script */
+    background: var(--color-bg-warm); /* picks up where the story's night-to-fire background ends */
   }
 
   .is-animated .ft-stage {
@@ -151,14 +207,135 @@ const circles = [
     height: 100vh;
     min-height: 0;
     padding: var(--gutter);
+    /* The circles' layer reaches above the stage (see .ft-circles) */
+    overflow: visible;
   }
 
-  .is-animated .ft-intro {
-    display: grid;
-    place-items: center;
+  /* Same film grain as the story above, so the background carries on seamlessly */
+  .is-animated .ft-stage::before {
+    content: '';
     position: absolute;
     inset: 0;
-    padding: var(--gutter);
+    background-image: var(--texture-grain);
+    opacity: 0.05;
+    pointer-events: none;
+  }
+
+  .is-animated .ft-embers,
+  .is-animated .ft-horizon-clip,
+  .is-animated .ft-circles,
+  .is-animated .ft-fill {
+    display: block;
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .is-animated .ft-embers {
+    opacity: 0;
+  }
+
+  /* Reaches 60vh above the stage, so while the stage is still rising the
+     circles' glow spills softly over its top edge instead of being cut off
+     in a straight line. Clipped at the sides and bottom like the rest. */
+  .is-animated .ft-circles {
+    top: -60vh;
+  }
+
+  /* A spark: a tiny bright core in a soft glow (one gradient, no outline).
+     The outer element rises, shrinks and fades; the inner one sways side to
+     side and flickers. */
+  .ft-ember {
+    position: absolute;
+    left: var(--x);
+    bottom: -2%;
+    width: calc(var(--size) * 4);
+    height: calc(var(--size) * 4);
+    animation: ember-rise var(--rise) linear var(--delay) infinite;
+  }
+
+  .ft-ember::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle closest-side,
+      color-mix(in srgb, var(--color-spark) 40%, white) 22%,
+      var(--color-spark) 32%,
+      color-mix(in srgb, var(--color-ember) 40%, transparent) 55%,
+      transparent
+    );
+    animation:
+      ember-sway var(--sway-time) ease-in-out var(--delay) infinite alternate,
+      ember-flicker var(--flicker) ease-in-out infinite alternate;
+  }
+
+  @keyframes ember-rise {
+    0% {
+      opacity: 0;
+      transform: translateY(0) scale(1);
+    }
+    12% {
+      opacity: 1;
+    }
+    70% {
+      opacity: 0.8;
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-80vh) scale(0.35);
+    }
+  }
+
+  @keyframes ember-sway {
+    from {
+      transform: translateX(calc(var(--sway) * -1));
+    }
+    to {
+      transform: translateX(var(--sway));
+    }
+  }
+
+  @keyframes ember-flicker {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0.45;
+    }
+  }
+
+  /* A warm glow building on the horizon as the section rises into view */
+  .is-animated .ft-horizon {
+    display: block;
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    width: 150vmax;
+    height: 90vmax;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, color-mix(in srgb, var(--color-fire-glow) 80%, transparent), color-mix(in srgb, var(--color-fire-hot) 35%, transparent) 55%, transparent);
+    opacity: 0;
+  }
+
+  /* The intro line: starts just below the top of the section, scrolls up
+     with the page and holds in the middle of the screen (sticky). Above the
+     circles, so the first bloom lifts it away instead of cutting through it. */
+  .is-animated .ft-intro-track {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    padding-top: 12vh;
+    pointer-events: none;
+  }
+
+  .ft-intro {
+    position: sticky;
+    top: 50vh;
+    padding-inline: var(--gutter);
     font-family: var(--font-display);
     font-size: var(--text-2xl);
     font-weight: 500;
@@ -166,17 +343,10 @@ const circles = [
     color: var(--color-text);
   }
 
-  .is-animated .ft-circles,
-  .is-animated .ft-fill {
-    display: block;
-    position: absolute;
-    inset: 0;
-  }
-
   .ft-circle {
     position: absolute;
     left: var(--x);
-    top: var(--y);
+    top: calc(60vh + var(--y)); /* --y is measured from the stage top */
     width: var(--size);
     height: var(--size);
     border-radius: 50%;
@@ -185,8 +355,15 @@ const circles = [
     will-change: transform;
   }
 
+  /* Inside the fire: a glowing centre fading to darker red at the edges.
+     Text on the brightest part stays above 5:1. */
   .ft-fill {
-    background: var(--color-flame);
+    background: radial-gradient(
+      ellipse at 50% 46%,
+      var(--color-fire-deep) 0%,
+      var(--color-flame) 45%,
+      var(--color-flame-edge) 100%
+    );
     opacity: 0;
   }
 
@@ -208,6 +385,8 @@ const circles = [
 
   if (section) {
     const intro = section.querySelector('.ft-intro');
+    const embers = section.querySelector('.ft-embers');
+    const horizon = section.querySelector('.ft-horizon');
     const fill = section.querySelector('.ft-fill');
     const content = section.querySelector('.ft-content');
     const circles = gsap.utils.toArray<HTMLElement>('.ft-circle', section);
@@ -217,22 +396,40 @@ const circles = [
     mm.add('(prefers-reduced-motion: no-preference)', () => {
       section.classList.add('is-animated');
       gsap.set(circles, { xPercent: -50, yPercent: -50, scale: 0 });
+      gsap.set(horizon, { xPercent: -50, yPercent: 55, scale: 0.6 });
+      gsap.set(intro, { yPercent: -50 }); // centred on the sticky point
 
-      // Timeline runs from 0 to 1 as the section scrolls through
+      // The timeline runs from 0 (section top at the bottom of the screen) to 1
+      // (section bottom at the bottom of the screen). Times below are written
+      // in % of the screen height scrolled into the section, then converted.
+      const LENGTH = 135; // section height in vh, same as the CSS
+      const at = (vh: number) => vh / LENGTH;
       const tl = gsap.timeline({ defaults: { ease: 'none' } });
-      tl.to(intro, { autoAlpha: 0, y: -24, duration: 0.14 }, 0.04);
+
+      // Rising into view: the intro line fades in as it scrolls up (it settles in
+      // the middle at 62), sparks drift up, a glow builds on the horizon
+      tl.fromTo(intro, { autoAlpha: 0 }, { autoAlpha: 1, duration: at(12), ease: 'power1.out' }, at(6));
+      tl.to(embers, { opacity: 1, duration: at(26) }, at(4));
+      tl.to(horizon, { opacity: 1, scale: 1, duration: at(60), ease: 'power1.in' }, at(10));
+
+      // The fire rises: circles bloom from below, the intro line drifts up and
+      // away, and the circles merge into a glowing red (the stage locks at 100)
       for (const circle of circles) {
-        tl.to(circle, { scale: 4.5, duration: 0.45, ease: 'power2.out' }, Number(circle.dataset.start));
+        tl.to(circle, { scale: 4.5, duration: at(30), ease: 'power2.out' }, at(Number(circle.dataset.start)));
       }
-      tl.to(fill, { opacity: 1, duration: 0.25 }, 0.48);
-      tl.fromTo(content, { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: 0.14 }, 0.76);
-      tl.to({}, { duration: 0.1 }, 0.9); // hold on the final screen
+      tl.to(intro, { autoAlpha: 0, y: -40, duration: at(12), ease: 'power1.in' }, at(76));
+      tl.to(fill, { opacity: 1, duration: at(16), ease: 'power1.inOut' }, at(92));
+      tl.to([embers, horizon], { opacity: 0, duration: at(12) }, at(100));
+
+      // The closing message rises in, then holds to the end of the section
+      tl.fromTo(content, { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: at(12), ease: 'power2.out' }, at(106));
+      tl.set({}, {}, 1);
 
       ScrollTrigger.create({
         trigger: section,
-        start: 'top top',
+        start: 'top bottom',
         end: 'bottom bottom',
-        scrub: 0.5,
+        scrub: 0.6,
         animation: tl,
       });
 

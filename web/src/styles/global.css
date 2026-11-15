@@ -32,9 +32,11 @@
   --color-ember-hover: #ff9a4d;
   --color-on-ember: #1a0b00; /* text on ember buttons: 7.4:1 */
   --color-flame: #9c2414; /* fire transition red */
+  --color-flame-edge: #6e170d; /* darker red at the edges of the transition's glow */
   --color-on-flame: #fff7f0; /* text on flame: 7.4:1 */
   --color-on-flame-muted: #ffe1cc; /* secondary text on flame: 6.3:1 */
   --color-flame-ink: #3a0a04; /* dark text on light buttons over flame */
+  --color-spark: #ffc247; /* bright core of sparks and map hotspots. Decorative only */
 
   /* Fire transition circles. Decorative only: never put text on these */
   --color-fire-glow: #e8703a;
@@ -43,6 +45,16 @@
 
   /* Cool counterpart for data (blue and orange stay distinct for colour-blind viewers) */
   --color-sky: #62b6f0; /* 8.7:1 on bg */
+
+  /* Night-to-fire background: the home story warms from navy to ember as you
+     scroll. All text colours stay at 6:1 or better on every stop. */
+  --color-bg-dusk: #0f1119;
+  --color-bg-dusk-warm: #161219;
+  --color-bg-ember: #1e1316;
+  --color-bg-warm: #27140f;
+
+  /* Film grain: fine monochrome noise, used at very low opacity */
+  --texture-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 
   /* Keyboard focus ring (3:1 or more against bg, surfaces and flame) */
   --color-focus: #ffc247;
@@ -381,12 +393,58 @@ a {
   }
 }
 
-/* Clickable cards lift slightly on hover (mouse/trackpad only, motion allowed) */
-@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+/*
+ * Mouse/trackpad only, motion allowed: clickable cards lift, tilt slightly
+ * towards the pointer, and a soft ember spotlight follows it.
+ * --mx/--my/--rx/--ry are set by src/scripts/home-effects.ts.
+ */
+.card {
+  isolation: isolate; /* keeps the spotlight (z-index -1) above the card background, below its text */
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(
+    22rem circle at var(--mx, 50%) var(--my, 0%),
+    color-mix(in srgb, var(--color-ember) 14%, transparent),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity var(--duration-base) var(--ease-out);
+  pointer-events: none;
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   .card:has(.card-link:hover) {
-    transform: translateY(-3px);
+    transform: perspective(60rem) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-3px);
     box-shadow: var(--shadow-raised);
   }
+
+  .card:hover::before {
+    opacity: 1;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Headings that rise in word by word                                  */
+/* ------------------------------------------------------------------ */
+
+/* Each word clips its own box so it can slide up into view (SplitWords.astro).
+   The padding/margin pair leaves room for descenders (g, y, p). */
+.word {
+  display: inline-block;
+  overflow: hidden;
+  padding-bottom: 0.14em;
+  margin-bottom: -0.14em;
+  vertical-align: top;
+}
+
+.word-inner {
+  display: inline-block;
 }
 
 /* ------------------------------------------------------------------ */
@@ -403,6 +461,11 @@ a {
 html.js-reveal [data-reveal],
 html.js-reveal [data-reveal-group] > * {
   opacity: 0;
+}
+
+/* Lines that draw themselves (the data-story timeline). --draw goes 0 -> 1. */
+html.js-reveal [data-draw] {
+  --draw: 0;
 }
 
 /* ------------------------------------------------------------------ */
