@@ -121,7 +121,7 @@ export default function AreaToolbar() {
           title="Use whatever is on the map"
         >
           <Globe size={16} aria-hidden="true" />
-          Map view
+          <span className="tool-label">Map view</span>
         </button>
         <button
           type="button"
@@ -134,7 +134,7 @@ export default function AreaToolbar() {
           title="Drag a rectangle on the map"
         >
           <SquareDashed size={16} aria-hidden="true" />
-          Draw area
+          <span className="tool-label">Draw area</span>
         </button>
         <button
           type="button"
@@ -148,7 +148,7 @@ export default function AreaToolbar() {
           title="Enter a latitude, longitude and radius"
         >
           <LocateFixed size={16} aria-hidden="true" />
-          Coordinates
+          <span className="tool-label">Coordinates</span>
         </button>
       </div>
 

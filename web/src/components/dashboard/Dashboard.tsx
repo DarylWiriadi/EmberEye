@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { CalendarDays, ChevronLeft, ChevronRight, Flame, Gauge, Star } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Flame, Gauge, Star, X } from 'lucide-react';
 import { useHealth } from '../../lib/api';
 import { featuredFire } from '../../lib/featuredFires';
 import { openFeaturedFire } from '../../lib/openFeaturedFire';
@@ -49,6 +49,8 @@ function DashboardShell() {
   const range = useAppStore((s) => s.dateRange);
   const setRange = useAppStore((s) => s.setDateRange);
   const coverage = health.data?.coverage;
+  const placing = useSimStore((s) => s.placing);
+  const sideHandle = useRef<HTMLButtonElement>(null);
 
   // A shared simulation is re-run (same inputs and seed, so the same fire).
   useEffect(() => {
@@ -74,7 +76,12 @@ function DashboardShell() {
   return (
     <div className="dash">
       <div className="dash-screen">
-        <section className="dash-map" aria-label="Map" data-side-open={sideOpen || undefined}>
+        <section
+          className="dash-map"
+          aria-label="Map"
+          data-side-open={sideOpen || undefined}
+          data-placing={placing || undefined}
+        >
           <MapView />
           <div className="dash-area-tools">
             <AreaToolbar />
@@ -82,8 +89,20 @@ function DashboardShell() {
             <ShareButton />
           </div>
 
+          {/* Phones: the full-screen side panel steps aside while an ignition point is
+              picked (it would cover the map), and this bar says what to do. */}
+          {placing && (
+            <div className="sim-place-hint" role="status">
+              <span>Tap the map where the fire starts</span>
+              <button type="button" className="sim-place-cancel" onClick={() => useSimStore.getState().setPlacing(false)}>
+                Cancel
+              </button>
+            </div>
+          )}
+
           <aside id="dash-side" className="dash-side" data-open={sideOpen} aria-label="Calendar, risk and featured fires">
             <button
+              ref={sideHandle}
               type="button"
               className="dash-side-tab"
               onClick={() => setSideOpen(!sideOpen)}
@@ -94,22 +113,37 @@ function DashboardShell() {
               {sideOpen ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
             </button>
             <div id="dash-side-panel" className="dash-side-panel" inert={!sideOpen}>
-              <div className="side-tabs" role="tablist" aria-label="Side panel">
-                {SIDE_TABS.map(({ id, label, Icon }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    role="tab"
-                    id={`side-tab-${id}`}
-                    aria-selected={sideTab === id}
-                    aria-controls={`side-pane-${id}`}
-                    className="side-tab"
-                    onClick={() => setSideTab(id)}
-                  >
-                    <Icon size={15} aria-hidden="true" />
-                    {label}
-                  </button>
-                ))}
+              <div className="side-head">
+                <div className="side-tabs" role="tablist" aria-label="Side panel">
+                  {SIDE_TABS.map(({ id, label, Icon }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="tab"
+                      id={`side-tab-${id}`}
+                      aria-selected={sideTab === id}
+                      aria-controls={`side-pane-${id}`}
+                      className="side-tab"
+                      onClick={() => setSideTab(id)}
+                    >
+                      <Icon size={15} aria-hidden="true" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {/* Phones: the panel covers the screen and its edge tab is off-screen */}
+                <button
+                  type="button"
+                  className="dash-side-close"
+                  aria-label="Close side panel"
+                  onClick={() => {
+                    setSideOpen(false);
+                    // Back to the edge tab once it's shown again (after this render)
+                    requestAnimationFrame(() => sideHandle.current?.focus({ preventScroll: true }));
+                  }}
+                >
+                  <X size={18} aria-hidden="true" />
+                </button>
               </div>
               <div
                 className="side-pane"

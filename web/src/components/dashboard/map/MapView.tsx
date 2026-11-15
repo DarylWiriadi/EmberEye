@@ -653,8 +653,10 @@ export default function MapView() {
         onMove={(e) => setZoomNow((z) => (Math.abs(z - e.viewState.zoom) >= 0.1 ? e.viewState.zoom : z))}
       >
         <DeckOverlay layers={layers} getTooltip={getTooltip} pickingRadius={5} />
-        <NavigationControl position="bottom-right" showCompass={false} />
+        {/* Bottom controls stack upwards in the order added: the credits line sits
+            at the very bottom, the zoom buttons above it (clear of the legend) */}
         <AttributionControl position="bottom-right" compact />
+        <NavigationControl position="bottom-right" showCompass={false} />
       </Map>
       <MapStatus
         message={status}

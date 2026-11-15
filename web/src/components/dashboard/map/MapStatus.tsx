@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { VIRIDIS_CSS } from '../../../lib/colors';
 import { useAppStore } from '../../../store/useAppStore';
 
@@ -16,8 +17,10 @@ export default function MapStatus({ message, showLegend, frpMax, fetching, error
   const showTrail = useAppStore((s) => s.showTrail);
   const setShowHotspots = useAppStore((s) => s.setShowHotspots);
   const setShowTrail = useAppStore((s) => s.setShowTrail);
+  // Small screens fold the explanatory notes away behind "More" (always shown on wide screens)
+  const [more, setMore] = useState(false);
   return (
-    <div className="map-status">
+    <div className="map-status" data-more={more || undefined}>
       <fieldset className="map-layers">
         <legend className="sr-only">Show on the map</legend>
         <label>
@@ -40,22 +43,33 @@ export default function MapStatus({ message, showLegend, frpMax, fetching, error
           </span>
         </div>
       )}
-      <p>{message}</p>
-      <p className="map-status-muted">Observed satellite detections</p>
-      {outlineNote && (
-        <p className="map-status-muted map-status-outline">
-          <span className="map-outline-swatch" aria-hidden="true" />
-          {outlineNote}
-        </p>
-      )}
+      <p className="map-status-msg">{message}</p>
       {fetching && <p className="map-status-muted">Updating…</p>}
       {error && <p className="map-status-error">{error.message}</p>}
-      {notes.map((n) => (
-        <p className="map-status-muted" key={n}>
-          {n}
-        </p>
-      ))}
+      <div className="map-status-more" id="map-status-more">
+        <p className="map-status-muted">Observed satellite detections</p>
+        {outlineNote && (
+          <p className="map-status-muted map-status-outline">
+            <span className="map-outline-swatch" aria-hidden="true" />
+            {outlineNote}
+          </p>
+        )}
+        {notes.map((n) => (
+          <p className="map-status-muted" key={n}>
+            {n}
+          </p>
+        ))}
       </div>
+      </div>
+      <button
+        type="button"
+        className="map-status-toggle"
+        aria-expanded={more}
+        aria-controls="map-status-more"
+        onClick={() => setMore((m) => !m)}
+      >
+        {more ? 'Less' : 'More'}
+      </button>
     </div>
   );
 }
