@@ -7,7 +7,7 @@ export const site = {
     'A harmonized MODIS and VIIRS fire hotspot record with a burning activity calendar, ' +
     'history comparisons and a fire-spread simulation. NASA Space Apps Challenge 2026.',
   github: 'https://github.com/DarylWiriadi/EmberEye',
-  firms: 'https://firms.modaps.eosdis.nasa.gov/',
+  firms: 'https://www.earthdata.nasa.gov/data/tools/firms',
   team: ['Daryl Allen Wiriadi', 'Nicholas Aidan Halim'],
 };
 

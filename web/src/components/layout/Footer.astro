@@ -4,6 +4,22 @@ import Brand from './Brand.astro';
 import { pages, site } from '../../lib/site';
 
 const year = 2026;
+
+// Every dataset the site uses, grouped by who provides it.
+const nasaData = [
+  { name: 'FIRMS', what: 'MODIS and VIIRS active fires', href: site.firms },
+  { name: 'GFWED', what: 'Fire Weather Index (MERRA-2 and GEOS-5)', href: 'https://data.giss.nasa.gov/impacts/gfwed/' },
+  { name: 'MERRA-2', what: 'Monthly weather and soil wetness', href: 'https://gmao.gsfc.nasa.gov/reanalysis/MERRA-2/' },
+  { name: 'MODIS MCD12Q1', what: 'Land cover for the simulation', href: 'https://doi.org/10.5067/MODIS/MCD12Q1.061' },
+  { name: 'MODIS MCD12C1', what: 'Land cover for the stats', href: 'https://doi.org/10.5067/MODIS/MCD12C1.061' },
+  { name: 'SRTM', what: 'Elevation', href: 'https://lpdaac.usgs.gov/products/srtmgl30v021/' },
+  { name: 'GIBS', what: 'Blue Marble imagery and map labels', href: 'https://www.earthdata.nasa.gov/engage/open-data-services-software/earthdata-developer-portal/gibs-api' },
+];
+const openData = [
+  { name: 'Natural Earth', what: 'Roads and land outlines', href: 'https://www.naturalearthdata.com/' },
+  { name: 'OpenStreetMap', what: 'Place names on the map, © contributors', href: 'https://www.openstreetmap.org/copyright' },
+  { name: 'H3', what: 'Hexagon grid', href: 'https://h3geo.org/' },
+];
 ---
 
 <footer class="site-footer">
@@ -13,6 +29,12 @@ const year = 2026;
       <p class="muted">{site.tagline}.</p>
       <p class="muted">
         Built by {site.team.join(' and ')} for the NASA Space Apps Challenge {year}.
+      </p>
+      <p class="muted">
+        AI use: we both used Claude Code (Anthropic), an AI coding assistant, to help write and debug
+        the data pipeline, API, dashboard and home page. We directed, tested and reviewed all of it,
+        and no data is AI-generated: everything shown comes from the NASA and open datasets credited
+        below. <a href={`${site.github}/blob/main/README.md#use-of-ai`} rel="noopener">Full details</a>.
       </p>
     </div>
 
@@ -48,9 +70,81 @@ const year = 2026;
       <p class="muted">Not affiliated with or endorsed by NASA.</p>
     </div>
   </div>
+
+  <div class="container footer-sources">
+    <section aria-labelledby="sources-nasa">
+      <h2 id="sources-nasa" class="footer-heading" data-reveal>NASA Earth science data</h2>
+      <ul class="source-list source-list--wide" role="list" data-reveal-group>
+        {nasaData.map((d) => (
+          <li>
+            <a href={d.href} rel="noopener">{d.name}</a>
+            <span>{d.what}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+    <section aria-labelledby="sources-open">
+      <h2 id="sources-open" class="footer-heading" data-reveal>Open data and tools</h2>
+      <ul class="source-list" role="list" data-reveal-group>
+        {openData.map((d) => (
+          <li>
+            <a href={d.href} rel="noopener">{d.name}</a>
+            <span>{d.what}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  </div>
 </footer>
 
 <style>
+  /* Data sources: a full-width row under the columns, NASA and open data side by side. */
+  .footer-sources {
+    display: grid;
+    gap: var(--space-2xl);
+    margin-top: var(--space-xl);
+    padding-top: var(--space-l);
+    border-top: 1px solid var(--color-border);
+  }
+
+  @media (min-width: 48rem) {
+    .footer-sources {
+      grid-template-columns: 3fr 1fr;
+      gap: var(--space-l);
+    }
+  }
+
+  .source-list {
+    display: grid;
+    gap: var(--space-xs) var(--space-l);
+    margin-top: var(--space-s);
+    padding: 0;
+    list-style: none;
+    font-size: var(--text-xs);
+  }
+
+  @media (min-width: 36rem) {
+    .source-list--wide {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 68rem) {
+    .source-list--wide {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  .source-list li {
+    display: grid;
+    align-content: start;
+    gap: 2px;
+  }
+
+  .source-list span {
+    color: var(--color-text-muted);
+  }
+
   .site-footer {
     padding-block: var(--space-2xl);
     background: var(--color-surface);
