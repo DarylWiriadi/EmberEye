@@ -1,4 +1,5 @@
 import { VIRIDIS_CSS } from '../../../lib/colors';
+import { useAppStore } from '../../../store/useAppStore';
 
 interface Props {
   message: string;
@@ -11,8 +12,25 @@ interface Props {
 }
 
 export default function MapStatus({ message, showLegend, frpMax, fetching, error, notes, outlineNote }: Props) {
+  const showHotspots = useAppStore((s) => s.showHotspots);
+  const showTrail = useAppStore((s) => s.showTrail);
+  const setShowHotspots = useAppStore((s) => s.setShowHotspots);
+  const setShowTrail = useAppStore((s) => s.setShowTrail);
   return (
-    <div className="map-status" aria-live="polite">
+    <div className="map-status">
+      <fieldset className="map-layers">
+        <legend className="sr-only">Show on the map</legend>
+        <label>
+          <input type="checkbox" checked={showHotspots} onChange={(e) => setShowHotspots(e.target.checked)} />
+          Hotspots
+        </label>
+        <label>
+          <input type="checkbox" checked={showTrail} onChange={(e) => setShowTrail(e.target.checked)} />
+          <span className="map-outline-swatch" aria-hidden="true" />
+          Fire trail
+        </label>
+      </fieldset>
+      <div aria-live="polite">
       {showLegend && (
         <div className="map-legend">
           <span className="map-legend-bar" style={{ background: VIRIDIS_CSS }} />
@@ -37,6 +55,7 @@ export default function MapStatus({ message, showLegend, frpMax, fetching, error
           {n}
         </p>
       ))}
+      </div>
     </div>
   );
 }

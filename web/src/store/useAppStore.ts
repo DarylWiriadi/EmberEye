@@ -3,6 +3,8 @@ import { create } from 'zustand';
 import type { Bbox, DateRange, MapViewState, SelectedArea } from '../types';
 import { stepOf, stepsFor, stepWindow } from '../lib/steps';
 
+export type SideTab = 'calendar' | 'simulate' | 'featured' | 'risk';
+
 interface AppState {
   view: MapViewState | null;
   dateRange: DateRange | null;
@@ -33,8 +35,27 @@ interface AppState {
   flying: boolean;
   setFlying: (flying: boolean) => void;
   setAreaTool: (tool: 'none' | 'rectangle') => void;
+  /** The side panel (calendar, risk, featured fires, simulation). */
+  sideOpen: boolean;
+  sideTab: SideTab;
+  setSideOpen: (open: boolean) => void;
+  /** Opens the side panel on a tab. */
+  showSideTab: (tab: SideTab) => void;
   /** Moves the slider to a day; outside the date range, the range becomes that day's month. */
   jumpToDate: (iso: string, bounds?: DateRange) => void;
+  /** Risk outlook: shown on the map while its tab is open; month null = the latest. */
+  riskOn: boolean;
+  riskMonth: string | null;
+  setRiskOn: (on: boolean) => void;
+  setRiskMonth: (month: string | null) => void;
+  /** Map layers the user can hide (hiding never changes what's loaded). */
+  showHotspots: boolean;
+  showTrail: boolean;
+  setShowHotspots: (on: boolean) => void;
+  setShowTrail: (on: boolean) => void;
+  /** A place to move the map to without picking it as the area. */
+  focus: { bbox: Bbox; id: number } | null;
+  focusOn: (bbox: Bbox) => void;
 }
 
 export const useAppStore = create<AppState>()((set, get) => ({
@@ -76,6 +97,11 @@ export const useAppStore = create<AppState>()((set, get) => ({
   flying: false,
   setFlying: (flying) => set({ flying }),
   setAreaTool: (areaTool) => set({ areaTool }),
+  // Open by default on wide screens (the calendar lives there); closed on phones.
+  sideOpen: typeof window !== 'undefined' && window.matchMedia('(min-width: 48rem)').matches,
+  sideTab: 'calendar',
+  setSideOpen: (sideOpen) => set({ sideOpen }),
+  showSideTab: (sideTab) => set({ sideTab, sideOpen: true }),
   jumpToDate: (iso, bounds) => {
     let range = get().dateRange;
     if (!range || iso < range.start || iso > range.end) {
@@ -89,6 +115,16 @@ export const useAppStore = create<AppState>()((set, get) => ({
     }
     get().scrubTo(stepOf(stepsFor(range), iso));
   },
+  riskOn: true,
+  riskMonth: null,
+  setRiskOn: (riskOn) => set({ riskOn }),
+  setRiskMonth: (riskMonth) => set({ riskMonth }),
+  showHotspots: true,
+  showTrail: true,
+  setShowHotspots: (showHotspots) => set({ showHotspots }),
+  setShowTrail: (showTrail) => set({ showTrail }),
+  focus: null,
+  focusOn: (bbox) => set({ focus: { bbox, id: (get().focus?.id ?? 0) + 1 } }),
 }));
 
 /** The area stats and downloads use: the picked area, else the map view. */

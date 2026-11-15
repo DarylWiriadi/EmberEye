@@ -1,4 +1,4 @@
-"""Upload the staged hotspot points (data/r2/points/, sample/, wide/) to Cloudflare R2.
+"""Upload the staged files (data/r2/points/, sample/, wide/, sim/) to Cloudflare R2.
 
 Credentials come from environment variables, or from pipeline/.env (gitignored):
     R2_ACCOUNT_ID=...
@@ -24,7 +24,10 @@ from botocore.config import Config
 
 import config as C
 
-PREFIXES = ("points/", "sample/", "wide/")
+PREFIXES = ("points/", "sample/", "wide/", "sim/")
+# File types uploaded, and how R2 labels them.
+TYPES = {".parquet": "application/vnd.apache.parquet", ".bin": "application/octet-stream",
+         ".json": "application/json"}
 
 
 def load_env():
@@ -68,7 +71,8 @@ def main(args):
     for prefix in PREFIXES:
         r = existing(s3, bucket, prefix)
         print(f"Bucket '{bucket}': {len(r)} files under {prefix}")
-        staged = {f.relative_to(stage).as_posix(): f for f in sorted((stage / prefix).rglob("*.parquet"))}
+        staged = {f.relative_to(stage).as_posix(): f for f in sorted((stage / prefix).rglob("*"))
+                  if f.suffix in TYPES}
         if staged:
             remote |= r
             local |= staged
@@ -84,7 +88,7 @@ def main(args):
     t0, done, sent = time.time(), 0, 0
     with ThreadPoolExecutor(max_workers=8) as pool:
         futures = {pool.submit(s3.upload_file, str(f), bucket, k,
-                               ExtraArgs={"ContentType": "application/vnd.apache.parquet"}): (k, f)
+                               ExtraArgs={"ContentType": TYPES[f.suffix]}): (k, f)
                    for k, f in todo}
         for fut in as_completed(futures):
             k, f = futures[fut]

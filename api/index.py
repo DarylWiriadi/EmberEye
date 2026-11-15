@@ -21,7 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.middleware.gzip import GZipMiddleware  # noqa: E402
 
 from _lib import db  # noqa: E402
-from _lib.routes import burned, calendar, export, hotspots, stats  # noqa: E402
+from _lib.routes import burned, calendar, export, hotspots, risk, sim, stats  # noqa: E402
 
 PREFIX = "/api"
 
@@ -70,5 +70,5 @@ def health():
             "query_ms": round((time.perf_counter() - t) * 1000, 1)}
 
 
-for r in (meta, calendar.router, hotspots.router, burned.router, export.router, stats.router):
+for r in (meta, calendar.router, hotspots.router, burned.router, export.router, stats.router, sim.router, risk.router):
     app.include_router(r, prefix=PREFIX)
