@@ -1,0 +1,16 @@
+scope,metric,value
+global_monthly,months,36
+global_monthly,mape_harmonized,2.2
+global_monthly,mape_raw_modis,76.9
+global_monthly,bias_harmonized,-0.6
+global_monthly,bias_raw_modis,-76.5
+global_monthly,r,0.995
+regional_monthly,region_months,7604
+regional_monthly,median_ape_harmonized,16.9
+regional_monthly,median_ape_raw_modis,82.2
+regional_monthly,within_25pct_harmonized,64.3
+regional_monthly,within_25pct_raw_modis,0.1
+regional_monthly,r,0.996
+regional_monthly,min_actual_celldays,100
+ratios_used,MODIS_AQUA,4.174
+ratios_used,VIIRS_NOAA20,0.993

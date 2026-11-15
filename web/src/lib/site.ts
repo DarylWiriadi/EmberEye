@@ -20,6 +20,7 @@ export const pages = {
 export const homeSections = [
   { id: 'problem', label: 'The problem' },
   { id: 'data-story', label: 'Data story' },
+  { id: 'how-it-works', label: 'How it works' },
   { id: 'approach', label: 'What you can do' },
   { id: 'featured', label: 'Featured fires' },
   { id: 'who', label: 'Who it’s for' },

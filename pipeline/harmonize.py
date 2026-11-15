@@ -59,7 +59,8 @@ def build_celldays(con):
     """)
 
 
-def build_ratios(con):
+def build_ratios(con, windows=None, out=None):
+    """`windows` and `out` let validate.py calibrate on a shorter window."""
     run(con, f"""
         CREATE OR REPLACE TEMP TABLE daily_counts AS
         SELECT * FROM '{(C.QA_DIR / "daily_counts.parquet").as_posix()}'
@@ -67,7 +68,7 @@ def build_ratios(con):
     run(con, """CREATE OR REPLACE TEMP TABLE ratios (
         sensor VARCHAR, cell2 UBIGINT, moy INTEGER, level INTEGER,
         n_sensor BIGINT, n_ref BIGINT, ratio DOUBLE)""")
-    for sensor, (lo, hi) in C.CALIB_WINDOWS.items():
+    for sensor, (lo, hi) in (windows or C.CALIB_WINDOWS).items():
         m = C.CALIB_MIN_CELLDAYS
         run(con, f"""
             INSERT INTO ratios
@@ -122,7 +123,8 @@ def build_ratios(con):
             SELECT '{sensor}', cell2, moy, level, n_sensor, n_ref, n_ref / n_sensor
             FROM pick
         """)
-    run(con, f"COPY ratios TO '{(C.HARMONIZED_DIR / 'ratios.parquet').as_posix()}' (FORMAT parquet)")
+    out = out or C.HARMONIZED_DIR / 'ratios.parquet'
+    run(con, f"COPY ratios TO '{out.as_posix()}' (FORMAT parquet)")
 
 
 def build_plan(con):

@@ -1,0 +1,496 @@
+---
+import SectionHeader from './SectionHeader.astro';
+import v from '../../data/validation.json';
+
+type Line = { name: string; color: string; values: (number | null)[]; dash?: string };
+
+const RAW = 'var(--color-sky)';
+const HARM = 'var(--color-ember)';
+const ACTUAL = 'var(--color-text)';
+
+const monthly = v.monthly.rows as [string, number | null, number | null, number | null, number | null][];
+const holdout = v.holdout.rows as [string, number, number, number][];
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const monthLabel = (ym: string) => `${MONTHS[Number(ym.slice(5, 7)) - 1]} ${ym.slice(0, 4)}`;
+const millions = (x: number) => `${(x / 1e6).toFixed(x % 1e6 === 0 ? 0 : 1)}M`;
+
+function chart(months: string[], lines: Line[], w: number, h: number, pad: { l: number; r: number; t: number; b: number }, xTick: (m: string) => string | null) {
+  const max = Math.max(...lines.flatMap((l) => l.values.filter((x): x is number => x != null)));
+  const step = max > 1.5e6 ? 0.5e6 : max > 6e5 ? 2e5 : 1e5;
+  const yMax = Math.ceil(max / step) * step;
+  const x = (i: number) => pad.l + (i / (months.length - 1)) * (w - pad.l - pad.r);
+  const y = (val: number) => pad.t + (1 - val / yMax) * (h - pad.t - pad.b);
+  const paths = lines.map((l) => {
+    let d = '';
+    let pen = false;
+    l.values.forEach((val, i) => {
+      if (val == null) {
+        pen = false;
+        return;
+      }
+      d += `${pen ? 'L' : 'M'}${x(i).toFixed(1)},${y(val).toFixed(1)}`;
+      pen = true;
+    });
+    return { ...l, d };
+  });
+  const yTicks = Array.from({ length: Math.round(yMax / step) + 1 }, (_, k) => k * step);
+  const xTicks = months.map((m, i) => ({ i, label: xTick(m) })).filter((t) => t.label);
+  const ends = paths.map((l) => {
+    let i = l.values.length - 1;
+    while (i > 0 && l.values[i] == null) i--;
+    return { ...l, ex: x(i), ey: y(l.values[i] ?? 0) };
+  });
+  return { w, h, pad, x, y, yMax, paths, yTicks, xTicks, ends };
+}
+
+const mMonths = monthly.map((r) => r[0]);
+const main = chart(
+  mMonths,
+  [
+    { name: 'Raw counts, sensors stitched', color: RAW, values: monthly.map((r) => r[1]) },
+    { name: 'Harmonized (EmberEye)', color: HARM, values: monthly.map((r) => r[2]) },
+  ],
+  960,
+  250,
+  { l: 52, r: 16, t: 16, b: 34 },
+  (m) => (m.endsWith('-01') && Number(m.slice(0, 4)) % 4 === 0 ? m.slice(0, 4) : null),
+);
+const narrow = chart(
+  mMonths,
+  main.paths,
+  420,
+  260,
+  { l: 40, r: 8, t: 14, b: 30 },
+  (m) => (m.endsWith('-01') && Number(m.slice(0, 4)) % 6 === 0 ? m.slice(0, 4) : null),
+);
+const mains = [
+  { c: main, cls: 'hw-wide', marker: 'VIIRS starts, Jan 2012' },
+  { c: narrow, cls: 'hw-narrow', marker: 'VIIRS, 2012' },
+];
+
+const hMonths = holdout.map((r) => r[0]);
+const test = chart(
+  hMonths,
+  [
+    { name: 'Actual VIIRS', color: ACTUAL, values: holdout.map((r) => r[1]) },
+    { name: 'Predicted from MODIS', color: HARM, values: holdout.map((r) => r[2]), dash: '5 4' },
+    { name: 'Raw MODIS', color: RAW, values: holdout.map((r) => r[3]) },
+  ],
+  400,
+  180,
+  { l: 44, r: 10, t: 12, b: 30 },
+  (m) => (m.endsWith('-01') ? m.slice(0, 4) : null),
+);
+
+const g = v.global_monthly;
+const r = v.regional_monthly;
+const ratio = v.ratios_used.MODIS_AQUA;
+const n20 = v.ratios_used.VIIRS_NOAA20;
+
+
+const payload = (months: string[], lines: Line[]) =>
+  JSON.stringify({ months: months.map(monthLabel), lines: lines.map((l) => ({ name: l.name, values: l.values })) });
+---
+
+<section id="how-it-works" class="section section--raised" aria-labelledby="how-title">
+  <div class="container">
+    <SectionHeader
+      eyebrow="How it works"
+      title="One record, whichever satellite saw the fire"
+      headingId="how-title"
+      lede="VIIRS sees smaller fires than MODIS, so raw counts jump fourfold in 2012. We put twenty years on one scale, then tested it on years the method never saw."
+    />
+
+    <figure class="hw-figure">
+      <figcaption class="hw-caption">
+        <span>Fire activity worldwide, per month (fire cell-days)</span>
+        <span class="hw-legend" aria-hidden="true">
+          <span><i style={`background:${RAW}`}></i>Raw counts, sensors stitched</span>
+          <span><i style={`background:${HARM}`}></i>Harmonized (EmberEye)</span>
+        </span>
+      </figcaption>
+      {mains.map(({ c, cls, marker }) => {
+        const at = c.x(mMonths.indexOf('2012-01'));
+        return (
+          <div class:list={['hw-chart', cls]} data-chart={payload(mMonths, c.paths)} data-pad-l={c.pad.l} data-pad-r={c.pad.r} data-w={c.w}>
+            <svg
+              viewBox={`0 0 ${c.w} ${c.h}`}
+              role="img"
+              aria-label={`Monthly fire activity worldwide, ${monthLabel(mMonths[0])} to ${monthLabel(mMonths.at(-1)!)}. Raw counts jump about fourfold in January 2012 when VIIRS starts; the harmonized line stays level across the switch.`}
+            >
+              {c.yTicks.map((t) => (
+                <g>
+                  <line class="hw-grid" x1={c.pad.l} x2={c.w - c.pad.r} y1={c.y(t)} y2={c.y(t)} />
+                  <text class="hw-tick" x={c.pad.l - 8} y={c.y(t) + 4} text-anchor="end">{millions(t)}</text>
+                </g>
+              ))}
+              {c.xTicks.map((t) => (
+                <text class="hw-tick" x={c.x(t.i)} y={c.h - 10} text-anchor="middle">{t.label}</text>
+              ))}
+              <line class="hw-marker" x1={at} x2={at} y1={c.pad.t} y2={c.h - c.pad.b} />
+              <text class="hw-marker-label" x={at + 6} y={c.pad.t + 12}>{marker}</text>
+              {c.paths.map((l) => <path d={l.d} fill="none" stroke={l.color} stroke-width="2" stroke-linejoin="round" />)}
+              <line class="hw-cross" x1="0" x2="0" y1={c.pad.t} y2={c.h - c.pad.b} />
+            </svg>
+            <div class="hw-tip" hidden></div>
+          </div>
+        );
+      })}
+      <p class="hw-note">From 2012 the harmonized record is VIIRS Suomi NPP itself, so the two lines overlap.</p>
+    </figure>
+
+    <ol class="hw-steps" role="list">
+      <li>
+        <h3>Count fire cell-days</h3>
+        <p class="muted">One ~0.7&nbsp;km² hexagon burning on one day counts once, whichever sensor saw it.</p>
+      </li>
+      <li>
+        <h3>Learn the conversion</h3>
+        <p class="muted">Where both satellites watched (2012–2019): VIIRS cell-days per MODIS cell-day, per region and month ({`about ${ratio.toFixed(1)}`} worldwide).</p>
+      </li>
+      <li>
+        <h3>Put it on one scale</h3>
+        <p class="muted">MODIS years × that ratio, Suomi NPP as is, and NOAA-20 since Nov 2026 (ratio {n20.toFixed(2)}).</p>
+      </li>
+    </ol>
+
+    <div class="hw-proof">
+      <div>
+        <p class="eyebrow">Did it work?</p>
+        <h3 class="hw-proof-title">We hid 2017–2019 and predicted it</h3>
+        <p class="muted">Calibrated on 2012–2016 only, predicted from MODIS alone, then compared with what VIIRS saw.</p>
+        <dl class="hw-stats">
+          <div>
+            <dt>Monthly error, worldwide</dt>
+            <dd><strong>{g.mape_harmonized}%</strong> <span>raw MODIS: {g.mape_raw_modis}%</span></dd>
+          </div>
+          <div>
+            <dt>Median error, regional months</dt>
+            <dd><strong>{r.median_ape_harmonized}%</strong> <span>raw MODIS: {r.median_ape_raw_modis}%</span></dd>
+          </div>
+          <div>
+            <dt>Regional months within ±25%</dt>
+            <dd><strong>{Math.round(r.within_25pct_harmonized)}%</strong> <span>raw MODIS: {r.within_25pct_raw_modis}%</span></dd>
+          </div>
+        </dl>
+      </div>
+        <figure class="hw-figure hw-figure--small">
+          <figcaption class="hw-caption">
+            <span>Test years, worldwide per month</span>
+            <span class="hw-legend" aria-hidden="true">
+              <span><i style={`background:${ACTUAL}`}></i>Actual VIIRS</span>
+              <span><i class="hw-dash" style={`border-color:${HARM}`}></i>Predicted</span>
+              <span><i style={`background:${RAW}`}></i>Raw MODIS</span>
+            </span>
+          </figcaption>
+          <div class="hw-chart" data-chart={payload(hMonths, test.paths)} data-pad-l={test.pad.l} data-pad-r={test.pad.r} data-w={test.w}>
+            <svg
+              viewBox={`0 0 ${test.w} ${test.h}`}
+              role="img"
+              aria-label={`2017 to 2019: the prediction from MODIS follows actual VIIRS within ${g.mape_harmonized}% per month on average; raw MODIS is about ${Math.round(-g.bias_raw_modis)}% too low.`}
+            >
+              {test.yTicks.map((t) => (
+                <g>
+                  <line class="hw-grid" x1={test.pad.l} x2={test.w - test.pad.r} y1={test.y(t)} y2={test.y(t)} />
+                  <text class="hw-tick" x={test.pad.l - 6} y={test.y(t) + 4} text-anchor="end">{millions(t)}</text>
+                </g>
+              ))}
+              {test.xTicks.map((t) => (
+                <text class="hw-tick" x={test.x(t.i)} y={test.h - 8} text-anchor="start">{t.label}</text>
+              ))}
+              {test.paths.map((l) => (
+                <path d={l.d} fill="none" stroke={l.color} stroke-width="2" stroke-dasharray={l.dash} stroke-linejoin="round" />
+              ))}
+              <line class="hw-cross" x1="0" x2="0" y1={test.pad.t} y2={test.h - test.pad.b} />
+            </svg>
+            <div class="hw-tip" hidden></div>
+          </div>
+        </figure>
+    </div>
+  </div>
+</section>
+
+<script>
+  // Hover readout: the month under the pointer and each line's value.
+  for (const box of document.querySelectorAll<HTMLElement>('.hw-chart')) {
+    const data = JSON.parse(box.dataset.chart!) as { months: string[]; lines: { name: string; values: (number | null)[] }[] };
+    const svg = box.querySelector('svg')!;
+    const cross = svg.querySelector<SVGLineElement>('.hw-cross')!;
+    const tip = box.querySelector<HTMLElement>('.hw-tip')!;
+    const w = Number(box.dataset.w);
+    const l = Number(box.dataset.padL);
+    const r = Number(box.dataset.padR);
+    const n = data.months.length;
+    const fmt = (x: number | null) => (x == null ? '–' : Math.round(x).toLocaleString('en'));
+    const hide = () => {
+      tip.hidden = true;
+      cross.style.opacity = '0';
+    };
+    svg.addEventListener('pointermove', (e) => {
+      const rect = svg.getBoundingClientRect();
+      const vx = ((e.clientX - rect.left) / rect.width) * w;
+      const i = Math.round(((vx - l) / (w - l - r)) * (n - 1));
+      if (i < 0 || i >= n) return hide();
+      const cx = l + (i / (n - 1)) * (w - l - r);
+      cross.setAttribute('x1', String(cx));
+      cross.setAttribute('x2', String(cx));
+      cross.style.opacity = '1';
+      tip.textContent = '';
+      const head = document.createElement('strong');
+      head.textContent = data.months[i];
+      tip.append(head);
+      for (const line of data.lines) {
+        const row = document.createElement('span');
+        row.textContent = `${line.name}: ${fmt(line.values[i])}`;
+        tip.append(row);
+      }
+      tip.hidden = false;
+      const px = (cx / w) * rect.width;
+      tip.style.left = `${Math.min(Math.max(px, 90), rect.width - 90)}px`;
+    });
+    svg.addEventListener('pointerleave', hide);
+  }
+</script>
+
+<style>
+  .hw-figure {
+    margin: 0;
+  }
+
+  .hw-caption {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--space-2xs) var(--space-m);
+    margin-bottom: var(--space-2xs);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+
+  .hw-legend {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: var(--space-2xs) var(--space-s);
+  }
+
+  .hw-legend > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .hw-legend i {
+    width: 16px;
+    height: 2px;
+    border-radius: 1px;
+  }
+
+  .hw-legend i.hw-dash {
+    height: 0;
+    border-top: 2px dashed;
+  }
+
+  .hw-chart {
+    position: relative;
+  }
+
+  .hw-narrow {
+    display: none;
+  }
+
+  @media (max-width: 40rem) {
+    .hw-wide {
+      display: none;
+    }
+
+    .hw-narrow {
+      display: block;
+    }
+  }
+
+  .hw-note {
+    margin-top: var(--space-2xs);
+    font-size: var(--text-xs);
+    color: var(--color-text-subtle);
+  }
+
+  .hw-chart svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    touch-action: pan-y;
+  }
+
+  .hw-grid {
+    stroke: var(--color-border);
+    stroke-width: 1;
+  }
+
+  .hw-tick {
+    fill: var(--color-text-subtle);
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  .hw-marker {
+    stroke: var(--color-text-subtle);
+    stroke-width: 1;
+    stroke-dasharray: 3 4;
+  }
+
+  .hw-marker-label {
+    fill: var(--color-text-muted);
+    font-size: 13px;
+  }
+
+  .hw-cross {
+    stroke: var(--color-text-muted);
+    stroke-width: 1;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .hw-tip {
+    position: absolute;
+    top: 0;
+    display: grid;
+    gap: 2px;
+    padding: 6px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-s);
+    background: var(--color-surface);
+    font-size: var(--text-xs);
+    white-space: nowrap;
+    transform: translate(-50%, -100%);
+    pointer-events: none;
+  }
+
+  .hw-tip[hidden] {
+    display: none;
+  }
+
+  /* Three steps side by side on wide screens. */
+  .hw-steps {
+    display: grid;
+    gap: var(--space-s) var(--space-m);
+    margin: var(--space-l) 0 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: step;
+  }
+
+  @media (min-width: 48rem) {
+    .hw-steps {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  .hw-steps li {
+    position: relative;
+    padding-left: 2.5rem;
+    counter-increment: step;
+  }
+
+  .hw-steps li::before {
+    content: counter(step);
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border: 1px solid var(--color-border-strong);
+    border-radius: 50%;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-ember);
+  }
+
+  .hw-steps h3 {
+    font-size: var(--text-base);
+  }
+
+  .hw-steps p {
+    margin-top: var(--space-3xs);
+    font-size: var(--text-sm);
+  }
+
+  /* Results beside the test-years chart on wide screens. */
+  .hw-proof {
+    display: grid;
+    gap: var(--space-m);
+    align-items: center;
+    margin-top: var(--space-l);
+    padding: var(--space-m);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-l);
+    background: var(--color-bg);
+  }
+
+  @media (min-width: 56rem) {
+    .hw-proof {
+      grid-template-columns: 1.1fr 1fr;
+    }
+  }
+
+  .hw-proof > div > * + * {
+    margin-top: var(--space-2xs);
+  }
+
+  .hw-proof-title {
+    font-size: var(--text-xl);
+  }
+
+  .hw-proof p.muted {
+    font-size: var(--text-sm);
+  }
+
+  .hw-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-s);
+    margin: var(--space-s) 0 0;
+  }
+
+  /* Labels wrap to different lengths: keep the numbers on one line across. */
+  .hw-stats > div {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .hw-stats dt {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+
+  .hw-stats dd {
+    display: grid;
+    margin: var(--space-3xs) 0 0;
+  }
+
+  .hw-stats strong {
+    font-family: var(--font-display);
+    font-size: var(--text-2xl);
+    line-height: 1.1;
+    color: var(--color-ember);
+  }
+
+  .hw-stats dd span {
+    font-size: var(--text-xs);
+    color: var(--color-text-subtle);
+  }
+
+  @media (max-width: 30rem) {
+    .hw-stats {
+      gap: var(--space-xs);
+    }
+
+    .hw-stats strong {
+      font-size: var(--text-xl);
+    }
+  }
+</style>
