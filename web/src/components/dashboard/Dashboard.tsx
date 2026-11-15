@@ -176,7 +176,7 @@ function DashboardShell() {
         </div>
       </div>
 
-      <section className="dash-stats" aria-label="Statistics">
+      <section id="stats" className="dash-stats" aria-label="Statistics">
         <StatsPanel />
       </section>
     </div>

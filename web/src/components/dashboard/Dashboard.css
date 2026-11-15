@@ -1176,6 +1176,11 @@
   padding: 24px 16px 40px;
 }
 
+/* Target of the app bar's "Stats" link: lands just below the sticky bar */
+.dash-stats[id] {
+  scroll-margin-top: var(--nav-height);
+}
+
 /* ---------- Stats panel ---------- */
 
 .stats {
