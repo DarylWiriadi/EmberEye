@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CalendarDays, ChevronLeft, ChevronRight, Flame, Gauge, Star, X } from 'lucide-react';
 import { useHealth } from '../../lib/api';
@@ -68,6 +68,50 @@ function DashboardShell() {
   const placing = useSimStore((s) => s.placing);
   const revealMap = useAppStore((s) => s.revealMap);
   const sideHandle = useRef<HTMLButtonElement>(null);
+
+  // Tab underline, animated like the home page nav: it shrinks while sliding,
+  // arrives as a dot at the near edge of the new tab, then grows across it.
+  const tabRow = useRef<HTMLDivElement>(null);
+  const tabLine = useRef<HTMLSpanElement>(null);
+  const shownTab = useRef<string | null>(null);
+  const placeLine = useCallback((animate: boolean) => {
+    const row = tabRow.current;
+    const line = tabLine.current;
+    const tab = row?.querySelector('.side-tab[aria-selected="true"]');
+    if (!row || !line || !tab) return;
+    const box = row.getBoundingClientRect();
+    const at = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      return { x: r.left - box.left, w: r.width };
+    };
+    const frame = (x: number, w: number) => ({ transform: `translateX(${x}px)`, width: `${w}px` });
+    const from = at(line);
+    const to = at(tab);
+    line.getAnimations().forEach((a) => a.cancel());
+    Object.assign(line.style, frame(to.x, to.w), { opacity: '1' });
+    if (!animate || from.w === 0 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const DOT = 6;
+    const dotTo = to.x > from.x ? to.x : to.x + to.w - DOT;
+    line.animate(
+      [
+        { ...frame(from.x, from.w), easing: 'ease-in-out' },
+        { ...frame(dotTo, DOT), offset: 0.6, easing: 'ease-out' },
+        frame(to.x, to.w),
+      ],
+      { duration: 420 },
+    );
+  }, []);
+  useLayoutEffect(() => {
+    placeLine(shownTab.current !== null && shownTab.current !== sideTab);
+    shownTab.current = sideTab;
+  }, [sideTab, placeLine]);
+  useEffect(() => {
+    const row = tabRow.current;
+    if (!row) return;
+    const ro = new ResizeObserver(() => placeLine(false));
+    ro.observe(row);
+    return () => ro.disconnect();
+  }, [placeLine]);
   useSimPlayback();
 
   // A shared simulation is re-run (same inputs and seed, so the same fire).
@@ -134,7 +178,8 @@ function DashboardShell() {
             </button>
             <div id="dash-side-panel" className="dash-side-panel" inert={!sideOpen}>
               <div className="side-head">
-                <div className="side-tabs" role="tablist" aria-label="Side panel">
+                <div className="side-tabs" role="tablist" aria-label="Side panel" ref={tabRow}>
+                  <span className="side-tab-line" ref={tabLine} aria-hidden="true" />
                   {SIDE_TABS.map(({ id, label, Icon }) => (
                     <button
                       key={id}
