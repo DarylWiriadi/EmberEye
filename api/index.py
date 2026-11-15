@@ -8,6 +8,7 @@ helper file into its own function). All routes are under /api.
 Local:  cd api && .venv/Scripts/python -m uvicorn index:app --port 8000
 """
 import os
+from datetime import date, timedelta
 import sys
 import time
 
@@ -37,6 +38,29 @@ app.add_middleware(
     allow_methods=["GET"],
     allow_headers=["*"],
 )
+
+# Map data responses are cached on Vercel's CDN, so the same view (a featured fire,
+# the default view) is computed once rather than for every visitor. The data only
+# changes with a new deploy, which clears the CDN cache.
+CACHED = {f"{PREFIX}/{p}" for p in ("hotspots", "burned", "calendar", "stats")}
+RECENT_DAYS = 14
+
+
+@app.middleware("http")
+async def cdn_cache(request: Request, call_next):
+    response = await call_next(request)
+    if (request.method != "GET" or request.url.path not in CACHED or response.status_code != 200
+            or "cache-control" in response.headers):
+        return response
+    try:
+        end = date.fromisoformat(request.query_params["end"])
+    except (KeyError, ValueError):
+        end = None
+    recent = end is None or end >= db.points_coverage()[1] - timedelta(days=RECENT_DAYS)
+    response.headers["Cache-Control"] = (
+        "public, max-age=60, s-maxage=3600, stale-while-revalidate=600" if recent
+        else "public, max-age=300, s-maxage=604800, stale-while-revalidate=86400")
+    return response
 
 
 
