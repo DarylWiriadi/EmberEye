@@ -158,4 +158,4 @@ We acknowledge the use of data and imagery from LANCE FIRMS operated by NASA's E
 
 ## Team and license
 
-Daryl Allen Wiriadi and Aidan Halim. [MIT License](LICENSE). Not affiliated with or endorsed by NASA.
+Daryl Allen Wiriadi and Nicholas Aidan Halim. [MIT License](LICENSE). Not affiliated with or endorsed by NASA.
