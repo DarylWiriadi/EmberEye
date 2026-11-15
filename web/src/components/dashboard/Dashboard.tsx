@@ -29,6 +29,20 @@ const queryClient = new QueryClient({
 // A shared link (?v=...) restores the sender's view before anything renders.
 const shared = applySharedLink(window.location.search);
 
+// /dashboard?tab=calendar (or simulate, featured, risk) opens that side panel tab,
+// e.g. from the home page's feature cards. The address is tidied back afterwards.
+{
+  const url = new URL(window.location.href);
+  const tab = url.searchParams.get('tab');
+  if (!shared && tab && ['calendar', 'simulate', 'featured', 'risk'].includes(tab)) {
+    useAppStore.getState().showSideTab(tab as 'calendar' | 'simulate' | 'featured' | 'risk');
+  }
+  if (tab) {
+    url.searchParams.delete('tab');
+    window.history.replaceState(null, '', url);
+  }
+}
+
 function addDays(iso: string, days: number) {
   const d = new Date(`${iso}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);

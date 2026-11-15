@@ -8,16 +8,19 @@ const features = [
   {
     icon: 'lucide:calendar-days',
     title: 'Burning calendar',
+    href: `${pages.dashboard}?tab=calendar`,
     text: 'See busy and quiet months at a glance, from 2002 to today, for any area you choose.',
   },
   {
     icon: 'lucide:git-compare',
     title: 'Compare against history',
+    href: pages.dashboard,
     text: 'Find out whether this month is above or below the long-term median, and by how much.',
   },
   {
     icon: 'lucide:flame',
     title: 'Simulate spread',
+    href: `${pages.dashboard}?tab=simulate`,
     text: 'Start a fire on the map and see an estimate of where it could spread over the next 72 hours.',
   },
 ];
@@ -39,7 +42,7 @@ const features = [
               <Icon name={f.icon} aria-hidden="true" />
             </span>
             <h3>
-              <a class="card-link" href={pages.dashboard}>
+              <a class="card-link" href={f.href}>
                 {f.title}
               </a>
             </h3>
