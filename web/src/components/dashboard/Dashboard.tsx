@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CalendarDays, ChevronLeft, ChevronRight, Flame, Gauge, Star, X } from 'lucide-react';
 import { useHealth } from '../../lib/api';
@@ -6,6 +6,8 @@ import { featuredFire } from '../../lib/featuredFires';
 import { openFeaturedFire } from '../../lib/openFeaturedFire';
 import { applySharedLink } from '../../lib/shareUrl';
 import ShareButton from './share/ShareButton';
+import Guide, { guideWanted } from './guide/Guide';
+import { CircleQuestionMark } from 'lucide-react';
 import FeaturedList from './featured/FeaturedList';
 import RiskPanel from './risk/RiskPanel';
 import SimulationPanel from './simulation/SimulationPanel';
@@ -28,6 +30,8 @@ const queryClient = new QueryClient({
 
 // A shared link (?v=...) restores the sender's view before anything renders.
 const shared = applySharedLink(window.location.search);
+// Shared views and featured fires open on something specific: no welcome guide on top.
+const openedView = !!shared || new URLSearchParams(window.location.search).has('fire');
 
 // /dashboard?tab=calendar (or simulate, featured, risk) opens that side panel tab,
 // e.g. from the home page's feature cards. The address is tidied back afterwards.
@@ -68,6 +72,7 @@ function DashboardShell() {
   const placing = useSimStore((s) => s.placing);
   const revealMap = useAppStore((s) => s.revealMap);
   const sideHandle = useRef<HTMLButtonElement>(null);
+  const [guideOpen, setGuideOpen] = useState(() => !openedView && guideWanted());
 
   // Tab underline, animated like the home page nav: it shrinks while sliding,
   // arrives as a dot at the near edge of the new tab, then grows across it.
@@ -149,7 +154,17 @@ function DashboardShell() {
             <AreaToolbar />
             <DownloadMenu />
             <ShareButton />
+            <button
+              type="button"
+              className="download-toggle guide-open"
+              onClick={() => setGuideOpen(true)}
+              aria-label="How to use the dashboard"
+              title="How to use the dashboard"
+            >
+              <CircleQuestionMark size={18} aria-hidden="true" />
+            </button>
           </div>
+          <Guide open={guideOpen} onClose={() => setGuideOpen(false)} />
 
           {/* Phones: the full-screen side panel steps aside while an ignition point is
               picked (it would cover the map), and this bar says what to do. */}

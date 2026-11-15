@@ -2098,3 +2098,235 @@
     display: flex;
   }
 }
+
+/* ---------- Welcome guide ---------- */
+
+/* Centred (the site's CSS reset removes the browser's default dialog margins). */
+.guide {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(54rem, calc(100vw - 32px));
+  height: fit-content;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-l);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 24px 64px rgb(0 0 0 / 0.5);
+}
+
+/* A slim themed scrollbar, kept clear of the rounded corners. */
+.guide::-webkit-scrollbar {
+  width: 10px;
+}
+
+.guide::-webkit-scrollbar-track {
+  margin: 16px 0;
+  background: transparent;
+}
+
+.guide::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: var(--color-border-strong) padding-box;
+}
+
+.guide::-webkit-scrollbar-thumb:hover {
+  background: var(--color-ember) padding-box;
+}
+
+/* Browsers without the styles above (Firefox): the standard thin version. */
+@supports not selector(::-webkit-scrollbar) {
+  .guide {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border-strong) transparent;
+  }
+}
+
+.guide::backdrop {
+  background: rgb(5 7 10 / 0.6);
+  backdrop-filter: blur(2px);
+}
+
+.guide-card {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  padding: 20px 24px;
+}
+
+.guide-x {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.guide-x:hover {
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+.guide-title {
+  margin: 0;
+  padding-right: 40px;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  line-height: 1.25;
+}
+
+.guide-lede {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+/* The one idea to get across first: the map view is the search area. */
+.guide-key {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--color-ember) 55%, transparent);
+  border-radius: var(--radius-m);
+  background: color-mix(in srgb, var(--color-ember) 10%, transparent);
+  color: var(--color-ember);
+}
+
+.guide-key p {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-text);
+}
+
+.guide-key ul {
+  display: grid;
+  gap: 2px;
+  margin: 6px 0 0;
+  padding-left: 1.1em;
+  list-style: disc;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.guide-key strong {
+  color: var(--color-text);
+}
+
+.guide-tips {
+  display: grid;
+  gap: 20px 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-tips li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 12px;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.guide-tips strong {
+  display: block;
+  margin-bottom: 1px;
+  font-size: 0.875rem;
+  color: var(--color-text);
+}
+
+.guide-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-m);
+  background: color-mix(in srgb, var(--color-ember) 14%, transparent);
+  color: var(--color-ember);
+}
+
+@media (min-width: 40rem) {
+  .guide-tips {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.guide-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-subtle);
+}
+
+.guide-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.guide-primary,
+.guide-secondary {
+  flex: 1 1 12rem;
+  height: 42px;
+  border-radius: var(--radius-m);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.guide-primary {
+  border: 0;
+  background: var(--color-ember);
+  color: var(--color-on-ember);
+}
+
+.guide-primary:hover {
+  background: var(--color-ember-hover);
+}
+
+.guide-secondary {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+.guide-secondary:hover {
+  border-color: var(--color-text-muted);
+}
+
+.guide-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-subtle);
+  text-align: center;
+}
+
+.guide-open {
+  padding: 0 11px;
+}
+
+@media (max-width: 36rem) {
+  .guide-card {
+    padding: 20px 16px;
+  }
+}
