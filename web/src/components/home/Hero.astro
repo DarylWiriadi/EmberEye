@@ -24,7 +24,7 @@ import { pages, site } from '../../lib/site';
   <HeroMap />
   <div class="hero-inner">
     <div class="hero-copy" data-reveal-group="load">
-      <p class="hero-eyebrow">NASA Space Apps Challenge 2026</p>
+      <p class="hero-eyebrow">Track fire activity across time and place</p>
       <h1 id="hero-title" class="hero-title" aria-label={site.tagline} data-reveal-words>
         <SplitWords text={site.tagline} />
       </h1>
@@ -117,6 +117,7 @@ import { pages, site } from '../../lib/site';
     letter-spacing: var(--tracking-wide);
     text-transform: uppercase;
     color: var(--color-ember);
+    text-wrap: balance; /* if it wraps (narrow screens), two even lines */
   }
 
   .hero-title {
